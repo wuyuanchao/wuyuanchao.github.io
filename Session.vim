@@ -4,7 +4,7 @@ let s:so_save = &g:so | let s:siso_save = &g:siso | setg so=0 siso=0 | setl so=-
 let v:this_session=expand("<sfile>:p")
 silent only
 silent tabonly
-cd ~/learnspace/technote
+cd ~/github/wuyuanchao.github.io
 if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
   let s:wipebuf = bufnr('%')
 endif
@@ -14,28 +14,13 @@ if &shortmess =~ 'A'
 else
   set shortmess=aoO
 endif
-badd +3 themes/ananke/config.yaml
-badd +42 themes/ananke/package.json
-badd +1 hugo.toml
-badd +12 ~/.vimrc
-badd +29 content/posts/my-new-post.md
-badd +7 data/menu.toml
-badd +7 themes/nostyleplease/layouts/_default/taxonomy.html
-badd +1 themes/nostyleplease/layouts/_default/term.html
-badd +0 themes/nostyleplease/layouts/partials/back_link.html
-badd +21 themes/nostyleplease/layouts/partials/head.html
-badd +2 themes/nostyleplease/layouts/_default/single.html
-badd +1 themes/nostyleplease/layouts/shortcodes/texi.html
-badd +1 themes/nostyleplease/layouts/shortcodes/texd.html
-badd +1 themes/nostyleplease/layouts/index.html
-badd +1 themes/nostyleplease/config.toml
-badd +1 themes/nostyleplease/content/_index.md
-badd +2 themes/nostyleplease/data/menu.toml
-badd +181 themes/nostyleplease/content/posts/test-highlight.md
+badd +1 data/menu.toml
+badd +4 hugo.toml
+badd +0 themes/ananke/config.yaml
 argglobal
 %argdel
 $argadd themes/ananke/config.yaml
-edit themes/nostyleplease/data/menu.toml
+edit data/menu.toml
 let s:save_splitbelow = &splitbelow
 let s:save_splitright = &splitright
 set splitbelow splitright
@@ -67,7 +52,6 @@ setlocal fdn=20
 setlocal nofen
 wincmd w
 argglobal
-balt themes/nostyleplease/layouts/index.html
 setlocal fdm=manual
 setlocal fde=0
 setlocal fmr={{{,}}}
@@ -78,12 +62,12 @@ setlocal fdn=20
 setlocal fen
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 49 - ((48 * winheight(0) + 55) / 110)
+let s:l = 4 - ((3 * winheight(0) + 53) / 107)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 49
-normal! 02|
+keepjumps 4
+normal! 012|
 wincmd w
 2wincmd w
 exe 'vert 1resize ' . ((&columns * 31 + 59) / 118)
@@ -102,6 +86,7 @@ if filereadable(s:sx)
   exe "source " . fnameescape(s:sx)
 endif
 let &g:so = s:so_save | let &g:siso = s:siso_save
+nohlsearch
 doautoall SessionLoadPost
 unlet SessionLoad
 " vim: set ft=vim :
