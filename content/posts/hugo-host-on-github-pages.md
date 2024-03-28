@@ -3,7 +3,10 @@ title = 'Hugo Host on Github Pages'
 date = 2024-03-27T20:49:54+08:00
 +++
 
-### GitHub Pages
+
+### Step 1. Create a GitHub repository.
+
+#### GitHub Pages
 
 There are three types of GitHub Pages sites: project, user, and organization. 
 
@@ -11,15 +14,10 @@ If you're creating a user site, your repository must be named `<user>.github.io`
 
 Go <https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site> for detail.
 
-#### Step 1. Create a GitHub repository.
 
 https://github.com/wuyuanchao/wuyuanchao.github.io.git
 
-#### Step 2. Push your local repository to GitHub.
-
-Create hugo site and test the code, then push them to GitHub.
-
-#### Step 3. Config GitHub Actions
+### Step 2. Config GitHub Actions
 
 Visit your GitHub repository. From the main menu choose Settings > Pages. Change the Source of **Build and deployment** to GitHub Actions. 
 
@@ -107,4 +105,11 @@ jobs:
         uses: actions/deploy-pages@v4
 ```
 
+#### Customize the workflow
+You may remove `Install Dart Sass` step if your site, themes, and modules do not transpile Sass to CSS using the Dart Sass transpiler.
 
+### Step 3. Push your local repository to GitHub.
+
+Create hugo site and test the code, then push them to GitHub.
+
+If the branch name match the config of 'on.push.branches', the workflow will run automatically.
