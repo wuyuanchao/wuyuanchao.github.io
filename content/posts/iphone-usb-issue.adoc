@@ -1,0 +1,13 @@
+---
+title: "Iphone Usb Issue"
+date: 2024-01-20T14:01:06+08:00
+---
+
+connection issues between iPhones and Macs via a USB connection。
+
+A temporary solution to fix it:
+----
+sudo killall -STOP -c usbd
+----
+
+https://apple.stackexchange.com/questions/382002/iphone-mac-connection-issue-and-what-does-the-usbd-process-do

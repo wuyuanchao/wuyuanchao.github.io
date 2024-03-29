@@ -2,3 +2,6 @@ baseURL = 'https://wuyuanchao.github.io/'
 languageCode = 'en-us'
 title = "wuyuanchao's blog"
 theme = 'nostyleplease'
+
+[security.exec]
+allow = ["^dart-sass-embedded$", "^go$", "^npx$", "^postcss$", "^asciidoctor$"]

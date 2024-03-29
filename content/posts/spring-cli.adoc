@@ -1,0 +1,21 @@
+---
+title: "Spring Cli"
+date: 2023-05-08T11:35:37+08:00
+---
+
+# Spring CLI
+
+The Spring Boot CLI is a command line tool that you can use to bootstrap a new project from start.spring.io or encode a password.
+
+## 初始化一个项目：
+
+```
+spring init --build=maven --java-version=1.8 --dependencies=web --boot-version=2.7.8 mydemo
+```
+
+## 加密密码
+
+```
+% spring encodepassword password
+{bcrypt}$2a$10$f55FtTzLdOreLrbbP4qqaOPt5tAzOsLz1LnxyskwLJlGY95otNdsO
+```

@@ -1,0 +1,183 @@
+---
+title: "React Learn"
+date: 2023-04-04T09:39:04+08:00
+---
+
+== React
+
+命令式编程 VS 声明式编程
+
+* Imperative programming
+
+writing the steps for how the user interface should be updated.
+
+* Declarative programming
+
+declare what they want to show.
+
+A popular declarative library that helps developers build user interfaces is React.
+
+React Core Concepts:
+
+* Components
+* Props
+* State
+
+=== react组件
+
+https://react.dev/learn
+
+react项目由组件(components)组成。
+----
+React apps are made out of components.
+----
+
+React components are JavaScript functions that return markup:
+
+----
+function MyButton() {
+  return (
+    <button>I'm a button</button>
+  );
+}
+----
+
+you can nest it into another component:
+
+----
+export default function MyApp() {
+  return (
+    <div>
+      <h1>Welcome to my app</h1>
+      <MyButton />
+    </div>
+  );
+}
+----
+
+The export default keywords specify the main component in the file.
+
+注意：react组件必须以大写字母开头，而html标签必须以小写开头，以此作为两者的区分。
+React component names must always start with a capital letter, while HTML tags must be lowercase.
+
+=== react属性
+
+Regular HTML elements have attributes that you can use to pass pieces of information that change the behavior of those elements.
+In the same way, you can pass pieces of information as properties to React components. These are called props.
+
+=== react状态
+
+Functions starting with use are called Hooks. useState is a built-in Hook provided by React.
+
+Often, you’ll want your component to “remember” some information and display it.For example, maybe you want to count the number of times a button is clicked. To do this, add state to your component.
+
+----
+import { useState } from 'react';
+
+function MyButton() {
+  const [count, setCount] = useState(0);
+
+  function handleClick() {
+    setCount(count + 1);
+  }
+
+  return (
+    <button onClick={handleClick}>
+      Clicked {count} times
+    </button>
+  );
+}
+
+export default function MyApp() {
+  return (
+    <div>
+      <h1>Counters that update separately</h1>
+      <MyButton />
+      <MyButton />
+    </div>
+  );
+}
+----
+
+The first time the button is displayed, count will be 0 because you passed 0 to useState().
+
+关于state的学习资料：
+
+https://react.dev/reference/react/useState
+
+
+What is the difference between props and state?
+
+Props is read-only information that's passed to components. State is information that can change over time, usually triggered by user interaction.
+
+== JSX
+
+The markup syntax you’ve seen above is called JSX. 
+
+JSX is stricter than HTML. You have to close tags like <br />. Your component also can’t return multiple JSX tags. You have to wrap them into a shared parent, like a <div>...</div> or an empty <>...</> wrapper:
+
+----
+function AboutPage() {
+  return (
+    <>
+      <h1>About</h1>
+      <p>Hello there.<br />How do you do?</p>
+    </>
+  );
+}
+----
+
+The Rules of JSX:
+
+https://react.dev/learn/writing-markup-with-jsx#the-rules-of-jsx
+
+. Return a single root element
+
+. Close all the tags 
+
+. camelCase all most of the things! 
+
+JSX turns into JavaScript and attributes written in JSX become keys of JavaScript objects. 
+In your own components, you will often want to read those attributes into variables. 
+But JavaScript has limitations on variable names. For example, their names can’t contain dashes or be reserved words like class.
+This is why, in React, many HTML and SVG attributes are written in camelCase. 
+
+For example, instead of stroke-width you use strokeWidth. Since class is a reserved word, in React you write className instead.(In React, you specify a CSS class with className. It works the same way as the HTML class attribute.)
+
+
+[WARNING]
+====
+Note that browsers don’t understand JSX out of the box, so you’ll need a JavaScript compiler, such as a Babel, to transform your JSX code into regular JavaScript.
+In addition, you will need to inform Babel what code to transform by changing the script type to type=text/jsx.
+Don't use this in production.It slowly compiles JSX with Babel in the browser and uses a large development build of React.
+====
+
+== Displaying data 
+
+JSX lets you put markup into JavaScript. Curly braces let you “escape back” into JavaScript so that you can embed some variable from your code and display it to the user.
+
+----
+const products = [
+  { title: 'Cabbage', isFruit: false, id: 1 },
+  { title: 'Garlic', isFruit: false, id: 2 },
+  { title: 'Apple', isFruit: true, id: 3 },
+];
+
+export default function ShoppingList() {
+  const listItems = products.map(product =>
+    <li
+      key={product.id}
+      style={{
+        color: product.isFruit ? 'magenta' : 'darkgreen'
+      }}
+    >
+      {product.title}
+    </li>
+  );
+
+  return (
+    <ul>{listItems}</ul>
+  );
+}
+----
+

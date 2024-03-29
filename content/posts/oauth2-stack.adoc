@@ -1,0 +1,26 @@
+---
+title: "Oauth2 Stack"
+date: 2023-04-18T09:26:01+08:00
+---
+
+== the new OAuth2 stack in Spring Security 5
+
+使用OAuth2 保护 RestApi 包含三个模块：
+
+1. 认证服务 Authorization Server
+2. 资源服务 Resource Server 
+3. 用户界面的认证 UI authorization code
+
+
+
+
+
+
+
+
+
+
+
+
+
+

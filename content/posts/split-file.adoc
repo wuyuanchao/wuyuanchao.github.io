@@ -1,0 +1,23 @@
+---
+title: "Split File"
+date: 2023-06-18T01:53:15+08:00
+categories:
+  - tools
+tags:
+  - shell
+---
+
+`-d` 表示后缀为数字
+`-a 3` 表示后缀3位长
+`prefix_` 表示前缀
+
+----
+split -l 10000 -d -a 3 data.csv goodsIds-
+----
+
+以上命令生成的文件如下：
+
+----
+goodsIds-000
+goodsIds-001
+----

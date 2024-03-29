@@ -1,0 +1,129 @@
+---
+title: "Webpack Getting Started"
+date: 2023-04-08T21:19:27+08:00
+---
+
+== Webpack Getting Started
+
+=== setup
+
+首先，新建一个项目目录。
+
+----
+mkdir webpack-demo
+cd webpack-demo
+----
+
+然后，初始化npm。
+
+----
+npm init
+----
+
+根据提示完成初始化过程，也可以使用 -y 参数使用默认值初始化。
+
+----
+npm init -y
+----
+
+最后，安装webpack。
+
+----
+npm install webpack webpack-cli --save-dev
+----
+
+=== coding
+
+从V4版本开始，webpack可以省略配置文件。默认使用 src/index.js 作为 entrypoint, 并以 dist/main.js 作为output。
+
+以约定优于配置的原则，创建index.js作为我们的entrypoint：
+
+----
+mkdir src
+cat << EOF > src/index.js
+const element = document.createElement('div');
+element.innerHTML = "hello webpack!";
+document.body.appendChild(element);
+EOF
+----
+
+有了js文件，我们还需要html。html-webpack-plugin 是一个 webpack 插件，用来生成html文件。
+
+----
+npm install html-webpack-plugin --save-dev
+----
+
+配置webpack：
+
+----
+cat <<EOF > webpack.config.js
+const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+
+module.exports = {
+  entry: {
+    index: './src/index.js',
+   },
+  plugins: [
+    new HtmlWebpackPlugin({
+      title: 'Output Management',
+    }),
+  ],
+  output: {
+    filename: '[name].bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+  },
+};
+EOF
+----
+
+配置npm以执行webpack：
+
+----
+cat <<EOF > package.json
+{
+  "name": "webpack-demo",
+  "version": "1.0.0",
+  "description": "webpack demo by wuyc",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack --mode=development"
+  },
+  "author": "wuyuanchao",
+  "license": "ISC",
+  "devDependencies": {
+    "html-webpack-plugin": "^5.5.0",
+    "webpack": "^5.78.0",
+    "webpack-cli": "^5.0.1"
+  }
+}
+EOF
+----
+
+
+== clean
+
+在webpack配置文件中开启对output的clean即可：
+----
+cat <<EOF > webpack.config.js
+const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+
+module.exports = {
+  entry: {
+    index: './src/index.js',
+   },
+  plugins: [
+    new HtmlWebpackPlugin({
+      title: 'Output Management',
+    }),
+  ],
+  output: {
+    filename: '[name].bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+    clean: true,
+  },
+};
+EOF
+----

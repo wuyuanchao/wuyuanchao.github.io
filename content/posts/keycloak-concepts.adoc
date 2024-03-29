@@ -1,0 +1,134 @@
+---
+title: "Keycloak Concepts"
+date: 2023-04-27T22:15:51+08:00
+---
+
+== 权限系统核心概念
+
+=== 用户(users)
+
+Users are entities that are able to log into your system. They can have attributes associated with themselves like email, username, address, phone number, and birthday. They can be assigned group membership and have specific roles assigned to them.
+
+=== 验证(authentication)
+
+The process of identifying and validating a user.
+
+=== 授权(authorization)
+
+The process of granting access to a user.
+
+=== 凭据(credentials)
+
+Credentials are pieces of data that Keycloak uses to verify the identity of a user. Some examples are passwords, one-time-passwords, digital certificates, or even fingerprints.
+
+=== 角色(roles)
+
+Roles identify a type or category of user. Admin, user, manager, and employee are all typical roles that may exist in an organization. Applications often assign access and permissions to specific roles rather than individual users as dealing with users can be too fine-grained and hard to manage.
+
+=== 用户角色映射(user role mapping)
+
+A user role mapping defines a mapping between a role and a user. A user can be associated with zero or more roles. This role mapping information can be encapsulated into tokens and assertions so that applications can decide access permissions on various resources they manage.
+
+=== 复合角色(composite roles)
+
+A composite role is a role that can be associated with other roles. For example a superuser composite role could be associated with the sales-admin and order-entry-admin roles. If a user is mapped to the superuser role they also inherit the sales-admin and order-entry-admin roles.
+
+=== 组(groups)
+
+Groups manage groups of users. Attributes can be defined for a group. You can map roles to a group as well. Users that become members of a group inherit the attributes and role mappings that group defines.
+
+
+=== 域(realms)
+
+A realm manages a set of users, credentials, roles, and groups. A user belongs to and logs into a realm. Realms are isolated from one another and can only manage and authenticate the users that they control.
+
+=== 客户端(clients)
+
+Clients are entities that can request Keycloak to authenticate a user. Most often, clients are applications and services that want to use Keycloak to secure themselves and provide a single sign-on solution. Clients can also be entities that just want to request identity information or an access token so that they can securely invoke other services on the network that are secured by Keycloak.
+
+=== 客户端适配器(client adapters)
+
+Client adapters are plugins that you install into your application environment to be able to communicate and be secured by Keycloak. Keycloak has a number of adapters for different platforms that you can download. There are also third-party adapters you can get for environments that we don’t cover.
+
+=== 许可(consent)
+
+Consent is when you as an admin want a user to give permission to a client before that client can participate in the authentication process. After a user provides their credentials, Keycloak will pop up a screen identifying the client requesting a login and what identity information is requested of the user. User can decide whether or not to grant the request.
+
+=== 客户端作用域(client scopes)
+
+When a client is registered, you must define protocol mappers and role scope mappings for that client. It is often useful to store a client scope, to make creating new clients easier by sharing some common settings. This is also useful for requesting some claims or roles to be conditionally based on the value of scope parameter. Keycloak provides the concept of a client scope for this.
+
+
+=== 客户端角色(client role)
+
+Clients can define roles that are specific to them. This is basically a role namespace dedicated to the client.
+
+=== 身份令牌(identity token)
+
+A token that provides identity information about the user. Part of the OpenID Connect specification.
+
+=== 访问令牌(access token)
+
+A token that can be provided as part of an HTTP request that grants access to the service being invoked on. This is part of the OpenID Connect and OAuth 2.0 specification.
+
+=== 断言(assertion)
+
+Information about a user. This usually pertains to an XML blob that is included in a SAML authentication response that provided identity metadata about an authenticated user.
+
+=== 服务账号(service account)
+
+Each client has a built-in service account which allows it to obtain an access token.
+
+=== 直接授予(direct grant)
+
+A way for a client to obtain an access token on behalf of a user via a REST invocation.
+
+=== 协议映射(protocol mappers)
+
+For each client you can tailor what claims and assertions are stored in the OIDC token or SAML assertion. You do this per client by creating and configuring protocol mappers.
+
+=== 会话(session)
+
+When a user logs in, a session is created to manage the login session. A session contains information like when the user logged in and what applications have participated within single-sign on during that session. Both admins and users can view session information.
+
+=== 用户联合提供者(user federation provider)
+
+Keycloak can store and manage users. Often, companies already have LDAP or Active Directory services that store user and credential information. You can point Keycloak to validate credentials from those external stores and pull in identity information.
+
+
+=== 身份提供者(identity provider)
+
+An identity provider (IDP) is a service that can authenticate a user. Keycloak is an IDP.
+
+
+=== 身份提供联合(identity provider federation)
+
+Keycloak can be configured to delegate authentication to one or more IDPs. Social login via Facebook or Google+ is an example of identity provider federation. You can also hook Keycloak to delegate authentication to any other OpenID Connect or SAML 2.0 IDP.
+
+
+=== 身份提供者映射器(identity provider mappers)
+
+When doing IDP federation you can map incoming tokens and assertions to user and session attributes. This helps you propagate identity information from the external IDP to your client requesting authentication.
+
+
+=== 必需操作(required actions)
+
+Required actions are actions a user must perform during the authentication process. A user will not be able to complete the authentication process until these actions are complete. For example, an admin may schedule users to reset their passwords every month. An update password required action would be set for all these users.
+
+
+=== 认证流程(authentication flows)
+
+Authentication flows are work flows a user must perform when interacting with certain aspects of the system. A login flow can define what credential types are required. A registration flow defines what profile information a user must enter and whether something like reCAPTCHA must be used to filter out bots. Credential reset flow defines what actions a user must do before they can reset their password.
+
+=== 事件(events)
+
+Events are audit streams that admins can view and hook into.
+
+
+=== 主题(themes)
+
+Every screen provided by Keycloak is backed by a theme. Themes define HTML templates and stylesheets which you can override as needed.
+
+
+
+

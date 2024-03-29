@@ -1,0 +1,16 @@
+---
+title: "Login With Curl"
+date: 2023-06-18T01:19:30+08:00
+---
+
+# 模拟登陆
+
+## 保存cookies
+----
+curl -X POST -c erp.cookies  http://erp.chicworldcorp.com/erp/user/ssoLogin -H'Content-Type:application/json' -d'{"userName":"吴远超","password":"****","locale":"zh_CN"}'
+----
+
+## 使用保存的cookie
+----
+curl -X POST http://erp.chicworldcorp.com/erp/order/orderList -H'Content-Type:application/json' -d'{"pageSize": 50, "pageNo": 1}' --cookie 'JSESSIONID=AB090968714049EF2231373AADA2CAF9'
+----

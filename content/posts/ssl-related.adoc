@@ -1,0 +1,12 @@
+---
+title: "SSL Related"
+date: 2024-01-19T13:42:52+08:00
+---
+
+查看一个网站SSL证书信息
+```
+openssl s_client -showcerts -connect  tr.snapchat.com:443
+```
+
+
+https://juejin.cn/post/6844904037402279944

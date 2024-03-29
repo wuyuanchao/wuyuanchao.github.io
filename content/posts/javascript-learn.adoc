@@ -1,0 +1,27 @@
+---
+title: "Javascript Learn"
+date: 2023-04-04T10:41:00+08:00
+---
+
+== JAVASCRIPT 学习
+
+https://javascript.info/
+
+https://developer.mozilla.org/en-US/docs/Learn/JavaScript
+
+
+=== TypeScript
+
+TypeScript中的类型，和java或者c#的很不一样：
+
+In TypeScript, this becomes very natural once you realize that every type is just a set. 
+How do you describe a value that either belongs in the string set or the number set? 
+It simply belongs to the union of those sets: string | number
+
+TypeScript的类型系统是结构型的。类型间的关系是由他们包含的属性决定的。
+
+TypeScript’s type system is structural, not nominal: We can use obj as a Pointlike because it has x and y properties that are both numbers.
+ The relationships between types are determined by the properties they contain, not whether they were declared with some particular relationship.
+
+tsc
+, the TypeScript compiler

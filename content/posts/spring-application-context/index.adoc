@@ -6,7 +6,7 @@ date: 2023-06-22T10:39:09+08:00
 ### ApplicationContext
 是为应用程序提供配置的中央接口。从类图可以看出，它通过继承其他接口，组合成一个功能强大的容器。
 
-![image](/images/GenericApplicationContext.png)
+image::GenericApplicationContext.png[]
 
 > Central interface to provide configuration for an application.
 An ApplicationContext provides:
@@ -23,7 +23,9 @@ An ApplicationContext provides:
 As this is a startup method, it should destroy already created singletons if it fails, to avoid dangling resources. In other words, after invocation of this method, either all or no singletons at all should be instantiated.
 
 refresh需要做的事情有：
-```java
+
+[,java]
+----
 // Prepare this context for refreshing.
 prepareRefresh();
 
@@ -59,7 +61,7 @@ finishBeanFactoryInitialization(beanFactory);
 
 // Last step: publish corresponding event.
 finishRefresh();
-```
+----
 
 #### prepareBeanFactory()
 添加一些 beanPostProcessors :
