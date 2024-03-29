@@ -14,13 +14,11 @@ if &shortmess =~ 'A'
 else
   set shortmess=aoO
 endif
-badd +1 data/menu.toml
-badd +4 hugo.toml
-badd +0 themes/ananke/config.yaml
+badd +0 hugo.toml
 argglobal
 %argdel
-$argadd themes/ananke/config.yaml
-edit data/menu.toml
+$argadd hugo.toml
+edit hugo.toml
 let s:save_splitbelow = &splitbelow
 let s:save_splitright = &splitright
 set splitbelow splitright
@@ -37,11 +35,12 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe 'vert 1resize ' . ((&columns * 31 + 59) / 118)
-exe 'vert 2resize ' . ((&columns * 86 + 59) / 118)
+exe 'vert 1resize ' . ((&columns * 31 + 79) / 158)
+exe 'vert 2resize ' . ((&columns * 126 + 79) / 158)
 argglobal
 enew
 file NERD_tree_tab_1
+balt hugo.toml
 setlocal fdm=manual
 setlocal fde=0
 setlocal fmr={{{,}}}
@@ -62,16 +61,15 @@ setlocal fdn=20
 setlocal fen
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 4 - ((3 * winheight(0) + 53) / 107)
+let s:l = 1 - ((0 * winheight(0) + 21) / 42)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 4
-normal! 012|
+keepjumps 1
+normal! 0
 wincmd w
-2wincmd w
-exe 'vert 1resize ' . ((&columns * 31 + 59) / 118)
-exe 'vert 2resize ' . ((&columns * 86 + 59) / 118)
+exe 'vert 1resize ' . ((&columns * 31 + 79) / 158)
+exe 'vert 2resize ' . ((&columns * 126 + 79) / 158)
 tabnext 1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0
   silent exe 'bwipe ' . s:wipebuf

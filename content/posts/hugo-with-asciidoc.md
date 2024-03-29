@@ -18,8 +18,8 @@ allow = ["^dart-sass-embedded$", "^go$", "^npx$", "^postcss$", "^asciidoctor$"]
 ```
 
 #### Step 3.
-github workflow config: add asciidoc install step in job build
+github workflow config: add asciidoctor install step in job build
 ```
-    - name: Install AsciiDoc
-      run: sudo apt-get install -y asciidoc
+    - name: Install AsciiDoctor
+      run: sudo gem install asciidoctor
 ```

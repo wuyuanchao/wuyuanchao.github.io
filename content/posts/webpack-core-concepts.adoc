@@ -1,0 +1,36 @@
+---
+title: "Webpack Core Concepts"
+date: 2023-04-08T22:44:05+08:00
+---
+
+== Webpack Core Concepts
+
+webpack的核心概念如下：
+
+=== Entry
+
+An entry point indicates which module webpack should use to begin building out its internal dependency graph.
+
+默认情况下，webpack的entry是 src/index.js
+
+=== Output
+
+output是webpack输出目标文件，默认是 dist/main.js
+
+=== Loaders
+
+Loaders用于协助webpack处理JavaScript 和 JSON 文件以外的其他类型的文件，将它们转换成 modules 。
+
+=== Plugins
+
+Plugins即插件，用于处理如：bundle optimization, asset management and injection of environment variables 等任务。
+
+=== Mode
+
+By setting the mode parameter to either development, production or none, you can enable webpack's built-in optimizations that correspond to each environment.
+
+默认为 production 。
+
+=== Browser Compatibility
+
+Webpack supports all browsers that are ES5-compliant (IE8 and below are not supported).

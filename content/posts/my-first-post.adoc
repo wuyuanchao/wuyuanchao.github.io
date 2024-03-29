@@ -1,0 +1,92 @@
+---
+title: "My First Post"
+date: 2023-03-01T16:36:07+08:00
+draft: true
+categories:
+    - tools
+tags:
+    - hugo
+---
+== My First Post
+
+本博客使用Hugo + asciidoc + Vim搭建完成
+
+* Hugo是静态站点生成工具，入门可参见官网quickstart： https://gohugo.io/getting-started/quick-start/
+
+* asciidoc是一种纯文本标记语言，入门可参见官方文档： https://docs.asciidoctor.org/asciidoc/latest/
+
+* vim是一种文本编辑器，官网地址： https://www.vim.org/
+
+=== 创建一个站点
+hugo是一个静态站点生成器
+
+> Hugo is a fast and modern static site generator written in Go, and designed to make website creation fun again.
+
+第一步需要做的就是创建一个站点：
+----
+hugo new site quickstart
+----
+
+=== 添加一篇博客
+
+----
+hugo new post/my-new-post.adoc
+----
+
+编辑完成后，通过一下命令启动
+
+----
+hugo server --buildDrafts
+hugo server -D
+----
+
+检查无误后，使用hugo命令进行发布
+
+----
+hugo
+----
+
+注意：发布的时候，不会包含draft为true的帖子，需设置成false才能发布
+
+Hugo 使用 asciidoc 进行内容编辑时，出现报错的解决办法。 
+
+----
+[security]
+enableInlineShortcodes = false
+
+[security.exec]
+allow = ["^dart-sass-embedded$", "^go$", "^npx$", "^postcss$", "^asciidoctor$"]
+osEnv = ["(?i)^(PATH|PATHEXT|APPDATA|TMP|TEMP|TERM|RUBYLIB)$"]
+
+[security.funcs]
+getenv = ["^HUGO_"]
+
+[security.http]
+methods = ["(?i)GET|POST"]
+urls = [".*"]
+----
+
+https://stackoverflow.com/questions/71058236/hugo-with-asciidoctor
+
+=== Nginx配置
+
+帖子的本地部署，使用ng进行。在nginx.conf主配置文件下，确保引入servers文件夹下的配置文件：
+
+----
+http {
+  ...
+  include servers/*;
+}
+----
+
+在servers文件夹下新建wuyc.conf,内容如下：
+
+----
+server{
+  listen    80;
+  server_name www.wuyc.com;
+  root /Users/wuyuanchao/learnspace/hugo-quickstart/public;
+}
+----
+
+并且在本地hosts文件中添加域名，方便浏览器访问。
