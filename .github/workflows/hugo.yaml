@@ -43,8 +43,8 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-      - name: Install AsciiDoc
-        run: sudo apt-get install -y asciidoc
+      - name: Install AsciiDoctor
+        run: gem install asciidoctor
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v4
