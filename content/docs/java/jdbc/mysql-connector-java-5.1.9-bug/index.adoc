@@ -1,0 +1,49 @@
+---
+title: "Bug In Mysql Connector 5.1.9"
+weight: 1
+# bookFlatSection: false
+# bookToc: true
+# bookHidden: false
+# bookCollapseSection: false
+# bookComments: false
+# bookSearchExclude: false
+---
+
+### mysql-connector-java-5.1.9 Bug记录
+
+#### 1. 前置条件：数据库存在，用户拥有权限
+
+image::cf555890e15467813967249d9474c053.png[]
+
+```
+% mysql -h172.31.2.3 -P3311 -uwuyc -p
+mysql> show databases;
+mysql> show grants for wuyc@'%';
+```
+
+#### 2. 现象：jdbc提示用户没有权限（3306端口需要有其他mysql服务存在）
+
+image::7aa75860a436eee1caaf6590081e29a5.png[]
+
+```
+<dependency>
+  <groupId>mysql</groupId>
+  <artifactId>mysql-connector-java</artifactId>
+  <version>5.1.9</version>
+</dependency>
+```
+
+
+#### 3. 原因：没有按配置，而是以默认端口连接mysql服务器
+
+image::e8b2e89de5d05438731fd0d2e7e80d1f.png[]
+
+```
+sudo tcpdump dst 172.31.2.3 -v -n
+```
+
+#### 4. 解决方案：升级到5.1.10
+
+image::b997394f3b848e46623376a3135733b1.png[]
+
+参考：https://dev.mysql.com/doc/relnotes/connector-j/5.1/en/news-5-1-10.html

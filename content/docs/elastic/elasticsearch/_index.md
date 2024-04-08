@@ -1,10 +1,10 @@
 ---
-title: "Elastic Stack"
-weight: 4
-bookFlatSection: true
+title: "Elasticsearch"
+weight: 1
+# bookFlatSection: true
 # bookToc: true
 # bookHidden: false
-# bookCollapseSection: false
+bookCollapseSection: true
 # bookComments: false
 # bookSearchExclude: false
 ---

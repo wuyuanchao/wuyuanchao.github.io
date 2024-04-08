@@ -10,6 +10,7 @@ image::GenericApplicationContext.png[]
 
 > Central interface to provide configuration for an application.
 An ApplicationContext provides:
+>
 > - Bean factory methods for accessing application components. Inherited from ListableBeanFactory.
 > - The ability to load file resources in a generic fashion. Inherited from the org.springframework.core.io.ResourceLoader interface.
 > - The ability to publish events to registered listeners. Inherited from the ApplicationEventPublisher interface.
@@ -20,7 +21,8 @@ An ApplicationContext provides:
 使用模版方法设计模式，简单地实现了通用的上下文功能。其中 refresh() 是启动方法。
 
 > Load or refresh the persistent representation of the configuration, which might be from Java-based configuration, an XML file, a properties file, a relational database schema, or some other format.
-As this is a startup method, it should destroy already created singletons if it fails, to avoid dangling resources. In other words, after invocation of this method, either all or no singletons at all should be instantiated.
+>
+> As this is a startup method, it should destroy already created singletons if it fails, to avoid dangling resources. In other words, after invocation of this method, either all or no singletons at all should be instantiated.
 
 refresh需要做的事情有：
 

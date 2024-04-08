@@ -1,0 +1,498 @@
+---
+title: "Beanfactory"
+weight: 1
+# bookFlatSection: false
+bookToc: true
+# bookHidden: false
+# bookCollapseSection: false
+# bookComments: false
+# bookSearchExclude: false
+---
+
+= BeanFactory的设计
+:imagesdir: images
+:toc: 
+
+== 概览
+众所周知，spring为我们提供了一个对象工厂，org.springframework.beans.factory.support.DefaultListableBeanFactory是一个默认实现。它的类层次结构图如下：
+
+image::DefaultListableBeanFactory_1.png[DefaultListableBeanFactory]
+
+
+== BeanFactory接口层次设计
+忽略实现部分，可以清晰地看到BeanFactory的接口层次设计：
+
+image::ConfigurableBeanFactory_1.png[] 
+
+BeanFactory作为基础接口提供getBean的能力。三个核心子接口：
+
+- ListableBeanFactory提供了遍历容器中Bean的能力。
+- AutowireCapableBeanFactory提供了自动装配的能力。
+- ConfiguableBeanFactory（继承自SingletonBeanRegistry和HierarchicalBeanFactory）提供了对BeanFactory配置的能力。
+
+集功能与一身的接口：
+
+- ConfigurableListableBeanFactory，继承了上述三个核心字接口，额外提供了分析和修改BeanDefinition和预加载单例对象的能力。
+
+=== BeanFactory
+其中最基础的接口是org.springframework.beans.factory.BeanFactory。
+
+> The root interface for accessing a Spring bean container. This is the basic client view of a bean container; further interfaces such as {@link ListableBeanFactory} and  {@link org.springframework.beans.factory.config.ConfigurableBeanFactory} are available for specific purposes.
+
+接口定义如下图所示：
+
+image::BeanFactory.png[]
+
+它的主要功能有：
+
+1. 按对象名称或者类型获取对象
+2. 按类型获取获取ObjectProvider*
+3. 按对象名称查询是否存在对象
+4. 判断对象是不是单例模式、原型模式
+5. 判断对象是不是和给定的类型匹配
+6. 按名称获取类型
+7. 按名称获取别名列表
+
+这个接口定义了对象工厂的核心功能：通过对象名称获取对象。
+
+从BeanFactory派生出同的接口分别定义不同的功能：
+
+=== ListableBeanFactory
+
+>  Extension of the {@link BeanFactory} interface to be implemented by bean factories that can enumerate all their bean instances, rather than attempting bean lookup by name one by one as requested by clients. BeanFactory implementations that preload all their bean definitions (such as XML-based factories) may implement this interface.
+> The methods in this interface will just respect bean definitions of this factory.They will ignore any singleton beans that have been registered by other means like {@link org.springframework.beans.factory.config.ConfigurableBeanFactory}'s {@code registerSingleton} method, with the exception of {@code getBeanNamesOfType} and {@code getBeansOfType} which will check such manually registered singletons too. Of course, BeanFactory's {@code getBean} does allow transparent access to such special beans as well. However, in typical scenarios, all beans will be defined by external bean definitions anyway, so most applications don't need to worry about this differentiation.
+
+接口定义如下：
+
+image::ListableBeanFactory.png[]
+
+主要功能有：
+
+1. 获取BeanDefinition的名称列表和数量
+2. 通过类型获取beanNames和一组bean对象
+3. 通过注解获取beanNames和一组bean对象
+4. 获取bean上对应annotationType的注解
+
+原先BeanFactory只能通过name或者class来获取对象，并不知道自己拥有多少BeanDefinitions（注意，是bean的定义，不是实例化后的bean对象，因为prototype类型的BeanDefinition可以实例化无数对象）。而且，通过name和class都必须能准确定位到具体的bean，如果不能唯一就抛异常。通过扩展，使BeanFactory拥有列举所有beanDefinitions的能力。同时，还支持了通过class获取一组对象的能力（如：通过接口获取容器里实现了该接口的所有对象）。更进一步，还把获取一组对象的能力拓展到注解上。
+
+可见，BeanFactory的所有接口，只关心怎么获取对象。至于是不是通过BeanDefinition来生成对象实例，还是其他方式，都延迟到子类来实现的。体现了spring高内聚的接口设计。
+
+ListableBeanFactory虽然开始关心BeanDefinition，但整个接口设计中，也只是有了BeanDefinition的概念，并不依赖BeanDefinition类。
+
+=== AutowireCapableBeanFactory
+> Extension of the {@link org.springframework.beans.factory.BeanFactory} interface to be implemented by bean factories that are capable of autowiring, provided that they want to expose this functionality for existing bean instances.
+
+接口定义如下：
+
+image::AutowireCapableBeanFactory.png[]
+
+主要功能包括：
+
+1. 通过class创建及配置bean实例
+2. 对已存在的bean实例进行属性注入，配置或初始化
+3. 通过类型或名称获取bean实例，是getBean的变形
+4. 处理依赖
+
+这个扩展，使BeanFactory拥有了创建对象和自动装配（或者说“依赖注入”）的能力。本接口配合BeanDefinitionRigestry，BeanFactory就可以完成BeanDefinition的注册，从容器获取Bean对象，在对象还没创建时实例化一个对象并初始化。如果需要支持单例，可以配合SingletonBeanRegistry，将单例对象注册到单例注册器，每次获取对象前先去注册器查找。从而BeanFactory就拥有基本的对象工厂能力了。
+
+所以，在只考虑本级容器的情况下（不考虑父级容），基本的getBean的功能，都由上述几个接口完成了定义。BeanFactory获取Bean的过程中，对bean进行了各种处理，比如类型转换，后置处理等，而这些功能的支持都是通过配置完成的，从而使BeanFactory拥有良好的扩展性。
+
+=== HierarchicalBeanFactory
+> Sub-interface implemented by bean factories that can be part of a hierarchy.
+
+接口定义如下：
+
+image::HierarchicalBeanFactory.png[]
+
+功能如下：
+
+1. 获取父级工厂
+2. 判断bean是否在本级工厂中
+
+该扩展接口只增加了两个方法，为的是让BeanFactory拥有层级支持的能力。
+
+*到目前为止，上述的三个接口，都是直接继承自BeanFactory接口的。并且所有的方法都是只读的，因此这些接口想要成功获取到对象，当前的beanFactory必须已经拥有了这些对象（BeanInstance）或者对象的定义（BeanDefinition），即BeanFactory已经配置完成。*
+
+=== ConfigurableBeanFactory
+对BeanFacotry进行配置的功能，由ConfigurableBeanFactory定义。该接口继承自HierarchicalBeanFactory接口，同时也继承了SingletonBeanRegistry接口。
+
+> Configuration interface to be implemented by most bean factories. Provides facilities to configure a bean factory, in addition to the bean factory client methods in the {@link org.springframework.beans.factory.BeanFactory} interface.
+
+image::ConfigurableBeanFactory.png[]
+
+这个接口提供了对BeanFactory的一系列配置功能（由于对BeanFactory的配置功能非常强大，接口繁多，不一一列举，以下是比较重要的几项）：
+
+==== 1.配置父级容器 setParentBeanFactory
+
+> Set the parent of this bean factory. <p>Note that the parent cannot be changed: It should only be set outside a constructor if it isn't available at the time of factory instantiation.
+
+ConfigurableBeanFactory继承自HierarchicalBeanFactory，所以它也是个支持层级的容器，通过扩展，增加了对父级容器进行设置的功能。
+*注意：父级容器一经配置不允许再进行修改。*
+
+==== 2.设置类加载器 setBeanClassLoader
+
+> Set the class loader to use for loading bean classes. Default is the thread context class loader. <p>Note that this class loader will only apply to bean definitions that do not carry a resolved bean class yet. This is the case as of Spring 2.0 by default: Bean definitions only carry bean class names, to be resolved once the factory processes the bean definition.
+
+*默认使用 Thread.currentThread().getContextClassLoader()*
+
+==== 3.配置是否缓存BeanMetadata setCacheBeanMetadata
+
+> Set whether to cache bean metadata such as given bean definitions (in merged fashion) and resolved bean classes. Default is on. <p>Turn this flag off to enable hot-refreshing of bean definition objects and in particular bean classes. If this flag is off, any creation of a bean instance will re-query the bean class loader for newly resolved classes.
+
+*默认是开启状态。*
+
+==== 4.配置表达式处理器 setBeanExpressionResolver
+
+> Specify the resolution strategy for expressions in bean definition values. There is no expression support active in a BeanFactory by default. An ApplicationContext will typically set a standard expression strategy here, supporting "#{...}" expressions in a Unified EL compatible style.
+
+可以通过这个配置支持el表达式。
+
+==== 5.配置类型转换服务 setConversionService
+
+> Specify a Spring 3.0 ConversionService to use for converting property values, as an alternative to JavaBeans PropertyEditors.
+
+从3.0开始以后，spring有了ConversionService。它是转换服务的入口。
+
+> this is the entry point into the convert system. 
+
+==== 6.配置PropertyEditor集合 addPropertyEditorRegistrar、registerCustomEditor 
+
+> Add a PropertyEditorRegistrar to be applied to all bean creation processes. <p>Such a registrar creates new PropertyEditor instances and registers them on the given registry, fresh for each bean creation attempt. This avoids the need for synchronization on custom editors; hence, it is generally preferable to use this method instead of {@link #registerCustomEditor}.
+
+> propertyEditorRegistrar is a interface for strategies that register custom {@link java.beans.PropertyEditor property editors} with a {@link org.springframework.beans.PropertyEditorRegistry property editor registry}. <p>This is particularly useful when you need to use the same set of property editors in several different situations: write a corresponding registrar and reuse that in each case.
+
+==== 7.配置类型转换器TypeConverter setTypeConverter
+
+> Set a custom type converter that this BeanFactory should use for converting bean property values, constructor argument values, etc. <p>This will override the default PropertyEditor mechanism and hence make any custom editors or custom editor registrars irrelevant.
+
+TypeConverter最终还是通过PropertyEditor或者ConversionService进行类型转换。
+
+> Convert the value to the required type (if necessary from a String). Conversions from String to any type will typically use the {@code setAsText} method of the PropertyEditor class, or a Spring Converter in a ConversionService.
+
+==== 8.配置StringValueResolver addEmbeddedValueResolver
+
+> Add a String resolver for embedded values such as annotation attributes.
+
+StringValueResolver 用来处理字符串值，比如占位符等
+
+> Resolve the given String value, for example parsing placeholders.
+
+==== 9.配置BeanPostProcessor addBeanPostProcessor
+
+> Add a new BeanPostProcessor that will get applied to beans created by this factory. To be invoked during factory configuration. <p>Note: Post-processors submitted here will be applied in the order of registration; any ordering semantics expressed through implementing the {@link org.springframework.core.Ordered} interface will be ignored. Note that autodetected post-processors (e.g. as beans in an ApplicationContext) will always be applied after programmatically registered ones.
+
+BeanPostProcessor 在初始化函数回调（比如：afterPropertiesSet或者init-method）的前后提供修改对象的钩子。
+
+>  Factory hook that allows for custom modification of new bean instances
+
+==== 10.注册Scope registerScope
+
+BeanFactory有两个默认的标准Scope：singleton，prototype。通过注册Scope可以进行扩展，比如WebApplicationContext会注册request，session。如果BeanDefinition没有指定Scope,那么在使用的时候，会被指定为singleton。所以很多时候，我们都说spring的bean默认是单例的。
+
+Scope的定义如下：
+
+> Strategy interface used by a {@link ConfigurableBeanFactory}, representing a target scope to hold bean instances in. This allows for extending the BeanFactory's standard scopes {@link ConfigurableBeanFactory#SCOPE_SINGLETON "singleton"} and {@link ConfigurableBeanFactory#SCOPE_PROTOTYPE "prototype"} with custom further scopes, registered for a {@link ConfigurableBeanFactory#registerScope(String, Scope) specific key}.
+
+==== 11.配置Bean的别名 registerAlias
+
+BeanFactory的实现继承了AliasRegistry的实现SimpleAliasRegistry，AliasRegistry中有相同函数。
+
+==== 12.设置Bean是否正在创建中 setCurrentlyInCreation 
+==== 13.注册Bean的依赖对象 registerDependentBean 
+==== 14.销毁对象 destroyBean、destroyScopedBean、destroySingletons
+
+该接口定义的功能，都是为了配置BeanFactory，一般在创建工厂后
+
+=== ConfigurableListableBeanFactory
+继承自ListableBeanFactory, AutowireCapableBeanFactory, ConfigurableBeanFactory。将所有功能集中于一身。还增加了获取BeanDefinition的支持，进行分析、修改。并且提供了预加载单例对象的功能。
+
+> Configuration interface to be implemented by most listable bean factories. In addition to {@link ConfigurableBeanFactory}, it provides facilities to analyze and modify bean definitions, and to pre-instantiate singletons.
+
+image::ConfigurableListableBeanFactory_1.png[]
+
+== 注册器 Registry
+在BeanFactory的接口层次设计中，定义了三个注册器：AliasRegistry、BeanDefinitionRegistry和SingletonBeanRegistry，主要功能是暂存数据。这种设计方式也被称为注册者模式，使用一个中央容器对象，将相关对象注册进来，提供全局共享，对象交换的功能。
+
+=== AliasRegistry
+别名注册器，用于管理别名。一个对象在容器中注册的时候，可以指定别名，也可以专门为一个名称配置一个别名。
+
+> Common interface for managing aliases. Serves as super-interface for {@link org.springframework.beans.factory.support.BeanDefinitionRegistry}.
+
+spring中对别名注册器的实现是SimpleAliasRegistry。它包含一个aliasMap（ConcurrentHashMap），用以存储注册的别名。
+
+image::AliasRegistry.png[]
+
+[别名的使用场景例子](https://www.javacodegeeks.com/2013/12/why-i-like-spring-bean-aliasing.html)
+
+=== SingletonBeanRegistry
+用来定义单例对象的注册功能，提供统一管理单例对象的手段。在BeanFactory的实现中，不管是手动注册和通过BeanDifinition生成的单例，都能在这个寄存器中找到。
+
+> Interface that defines a registry for shared bean instances. Can be implemented by {@link org.springframework.beans.factory.BeanFactory} implementations in order to expose their singleton management facility in a uniform manner.
+
+image::SingletonBeanRegistry.png[]
+
+spring中的默认实现是**DefaultSingletonBeanRegistry**，它继承自SimpleAliasRegistry，并实现SingletonBeanRegistry接口。
+
+image::DefaultSingletonBeanRegistry.png[]
+
+> Generic registry for shared bean instances, implementing the{@link org.springframework.beans.factory.config.SingletonBeanRegistry}.Allows for registering singleton instances that should be shared for all callers of the registry, to be obtained via bean name. 
+Also supports registration of {@link org.springframework.beans.factory.DisposableBean} instances,(which might or might not correspond to registered singletons),to be destroyed on shutdown of the registry. Dependencies between beans can be registered to enforce an appropriate shutdown order.
+
+该实现类主要用来当作BeanFactory实现的基类，提供对单例对象的管理的支持。因为这是个单例对象注册器，所以核心功能是单例对象的注册和获取，对象的创建工作不属于该类的职责范围。为了支持循环依赖，注册器需要知道正在创建中的单例对象，将未装配完成的对象暴露出来。为了能正确销毁对象，注册器需要知道哪些对象指定了destroy方法，以及对象间的包含和依赖关系。因此它包含了以下几个重要的域：
+
+1. 三个比较重要的缓存，负责存储已注册或者正在创建中的单例对象.使用三个缓存主要是为了对循环依赖提供支持，如果没有循环依赖，singletonFactories和earlySingletonObjects是不起作用的。其中singletonFactories是hashMap，而非concurrentHashMap，因为对它的读写全部由synchronized (this.singletonObjects)包裹，因此不需要使用concurrentHashMap。
+
+- singletonObjects （ConcurrentHashMap）
+- singletonFactories （HashMap）
+- earlySingletonObjects （ConcurrentHashMap）
+
+2. 一个已注册单例对象名称的集合： 
+- registeredSingletons（LinkedHashSet）
+
+3. 一个正在创建中的单例对象的名称集合以及忽略创建检测的对象名称列表：
+- singletonsCurrentlyInCreation（SetFromMap）
+- inCreationCheckExclusions（SetFromMap）
+
+4. 一组实例对象间的关系映射表：
+- containedBeanMap（ConcurrentHashMap）存储 对象名称：包含的对象名称的集合（包含必定依赖）
+- dependentBeanMap（ConcurrentHashMap）存储 对象名称：被依赖的对象名称集合（dependent on the key）
+- dependenciesForBeanMap（ConcurrentHashMap）存储 对象名称：所依赖对象名称集合（dependencies of the key）
+
+5. 以及一个用于存储关闭容器时需要手动销毁的对象的Map和是否正在销毁单例对象的标志位：
+- disposableBeans（LinkedHashMap）
+- singletonsCurrentlyInDestruction（boolean）
+
+6. 一个单例创建时被抑制住不往外抛的异常集合
+- suppressedExceptions（Set）
+
+DefaultSingletonBeanRegistry还拥有一个抽象子类（abstract class）**FactoryBeanRegistrySupport**，增加了对FactoryBean的注册支持。
+内部持有一个factoryBeanObjectCache（ConcurrentHashMap），用于存储由FactoryBeans创建的单例对象（注意：只缓存单例对象）。
+
+附：由于getObjectFromFactoryBean方法中，会判断依赖的bean是否在singletonObjects集合中，不在的话就创建一个。如果有循环依赖FactoryBean生成的对象的场景，需要小心，循环依赖的对象由于还不在singletonObjects集合中，所以会重新创建一个新对象。
+
+实验如下：
+
+image::ExperimentClass.png[]
+
+image::circular-reference.png[]
+
+而ProxyFactoryBean的实现中，getObject会根据是否单例决定是从保存的singletonInstance中取，还是再new一个实例，从而避免上面的问题。
+```
+@Override
+@Nullable
+public Object getObject() throws BeansException {
+    initializeAdvisorChain();
+    if (isSingleton()) {
+        return getSingletonInstance();
+    }
+    else {
+        if (this.targetName == null) {
+            logger.info("Using non-singleton proxies with singleton targets is often undesirable. " +
+                    "Enable prototype proxies by setting the 'targetName' property.");
+        }
+        return newPrototypeInstance();
+    }
+}
+```
+
+=== BeanDefinitionRegistry
+BeanDefinition注册器，用于管理BeanDefinition。整个SpringBeanFactory包中，就只有这个接口定义了关于BeanDefinition的注册功能。所以如果一个BeanFactory的实现，想要支持BeanDefinition的注册，必须实现本接口。同时spring的BeanDifinitionReaders也需要和这个接口配合，将BeanDefinition注册到BeanFactory中。
+
+> Interface for registries that hold bean definitions, for example RootBeanDefinition and ChildBeanDefinition instances. Typically implemented by BeanFactories that internally work with the AbstractBeanDefinition hierarchy.
+<p>This is the only interface in Spring's bean factory packages that encapsulates <i>registration</i> of bean definitions. The standard BeanFactory interfaces only cover access to a <i>fully configured factory instance</i>. 
+<p>Spring's bean definition readers expect to work on an implementation of this interface. Known implementors within the Spring core are DefaultListableBeanFactory and GenericApplicationContext.
+
+image::BeanDefinitionRegistry.png[]
+
+== BeanFactory的实现
+java是单继承的语言，所以DefaultListableBeanFactory的继承链是条单链。可参考下图蓝色实线箭头方向。
+
+image::ConfigurableListableBeanFactory.png[]
+
+最上层的两个实现，是对注册的实现。另一个注册器，BeanDefinitionRegistry没有单独的默认实现类，而是由DefaultListableBeanFactory直接实现。
+
+BeanFactory的实现，主要由三个类来完成：
+
+1. AbstractBeanFactory继承自FactoryBeanRegistrySupport，并实现了ConfigurableBeanFactory，这是BeanFactory最基础的抽象类，实现了BeanFactory的所有配置功能。
+2. AbstractAutowireCapableBeanFactory继承自AbstractBeanFactory，并实现了AutowireCapableBeanFactory接口，改类主要提供了通过BeanDifinition创建对象的支持。
+3. DefaultListableBeanFactory继承AbstractAutowireCapableBeanFactory，并实现了ConfigurableListableBeanFactory接口和BeanDefinitionRegistry接口（实现了BeanDifinition的注册）。
+4. StaticListableBeanFactory是ListableBeanFactory的另一个实现。它只支持注册和获取已经存在的单例对象，不支持从BeanDefinition创建。可以作为BeanFactory的简单实现示例。
+
+image::StaticListableBeanFactory.png[]
+
+=== AbstractBeanFactory
+> Abstract base class for {@link org.springframework.beans.factory.BeanFactory} implementations, providing the full capabilities of the {@link org.springframework.beans.factory.config.ConfigurableBeanFactory} SPI.
+> This class provides a singleton cache (through its base class  {@link org.springframework.beans.factory.support.DefaultSingletonBeanRegistry}, singleton/prototype determination, {@link org.springframework.beans.factory.FactoryBean} handling, aliases, bean definition merging for child bean definitions, and bean destruction ({@link org.springframework.beans.factory.DisposableBean} interface, custom destroy methods). Furthermore, it can manage a bean factory hierarchy (delegating to the parent in case of an unknown bean), through implementing the {@link org.springframework.beans.factory.HierarchicalBeanFactory} interface.
+
+image::AbstractBeanFactory.png[]
+
+AbstractBeanFactory是BeanFacotry的抽象基类，实现了getBean方法。最主要的方法是doGetBean，它定义了完整的获取一个Bean的过程：
+
+1. 标准化beanName（解析factoryBean的名称和别名，转换成原始的beanName）；
+2. 尝试从单例注册器获取对象，如果获取成功，尝试getObjectForBeanInstance（考虑了FactoryBean的情况）并返回；
+3. 判断Bean是否存在于本级容器，否则尝试去父容器getBean（如果父容器存在）；
+4. 获取BeanDefinition（a merged RootBeanDefinition），获取的时候需要将对应的parent合并进来（BeanDefinition支持parent配置）；为了性能，spring对merge过的BeanDefinition做了缓存，放在mergedBeanDefinitions中；（*具体的BeanDefinition获取由子类实现*）
+5. 分别对不同的scope（Singleton，Prototype和注册的scope）进行对象获取。步骤基本相似：before#Creation,createBean,after#Creation,getObjectForBeanInstance。
+    - Singleton的获取，交由单例注册器实现，调用的时候传入ObjectFactory告知如何创建bean（主要为了延迟创建bean对象，如果singletonObjects中已经存在，就不需要再创建了。ObjectFactory及其类似JDK8的Supplier）。
+    - Prototype因为每次都需要一个新的对象，所以直接进行了对象的创建；
+    - 其他注册的scope，交由scope的get借口，也需要给一个ObjectFactory将对象的创建方法传入，给了scope在创建对象时有更大的扩展能力，这点和singleton很相似。而在创建前（before）后（after），用的却是Prototype这个scope的beforePrototypeCreation和afterPrototypeCreation。(*其中具体的对象创建方法createBean的实现则延迟到了子类中*)
+6. 尝试进行类型转换（需要的话）并返回。
+
+从上述过程中，可以看到两个非常重要的虚方法：
+- getBeanDefinition
+- createBean
+> The main template methods to be implemented by subclasses are {@link #getBeanDefinition} and {@link #createBean}
+
+[source,mermaid]
+----
+sequenceDiagram
+Application->>AbstractBeanFactory: getBean(name)
+AbstractBeanFactory->>AliasRegistry: canonicalName(name)
+AliasRegistry->>AbstractBeanFactory: name
+AbstractBeanFactory->>SingletonRegistry: getSingleton(name)
+SingletonRegistry->>AbstractBeanFactory: sharedInstance
+AbstractBeanFactory-->>Application:return if inst is not FactoryBean
+AbstractBeanFactory-->>FactoryBeanRegistrySupport: getObjectFromFactoryBean(sharedInstance)
+FactoryBeanRegistrySupport-->>AbstractBeanFactory:bean
+AbstractBeanFactory-->>Application:bean
+AbstractBeanFactory->>BeanDefinitionRegistry:getBeanDefinition(name)
+BeanDefinitionRegistry->>AbstractBeanFactory:beanDefinition
+AbstractBeanFactory->>AbstractBeanFactory:getMergedBeanDefinition(beanDefinition)
+AbstractBeanFactory->>AbstractAutowireCapableBeanFactory:ceateBean(rootBeanDefinition)
+AbstractAutowireCapableBeanFactory->>AbstractBeanFactory:instance
+AbstractBeanFactory->>FactoryBeanRegistrySupport: getObjectFromFactoryBean(instance)
+FactoryBeanRegistrySupport->>AbstractBeanFactory:beanInstance
+AbstractBeanFactory->>Application:beanInstance(convertIfNecessary)
+----
+
+同时它还实现了ConfigurableBeanFactory，提供对BeanFactory的配置功能。其中包括beanExpresionResolver, conversionService, PropertyEditor, typeConverter, beanPostProcessor等等的配置。默认情况下，这些配置都是空。所以当使用DefaultListableBeanFactory的时候，即使有定义BeanPostProcessor的BeanDefiniton，但是如果不配置到BeanFactory中，它也只是一个普通的Bean。
+
+=== AbstractAutowireCapableBeanFactory
+AbstractAutowireCapableBeanFactory完成了bean的创建，属性的注入、装配(包括自动装配）以及初始化。
+
+> Abstract bean factory superclass that implements default bean creation, with the full capabilities specified by the {@link RootBeanDefinition} class.
+> Provides bean creation (with constructor resolution), property population, wiring (including autowiring), and initialization. Handles runtime bean references, resolves managed collections, calls initialization methods, etc. Supports autowiring constructors, properties by name, and properties by type.
+
+image::AbstractAutowireCapableBeanFactory.png[]
+
+AbstractAutowireCapableBeanFactory最核心的方法是doCreateBean。在执行doCreateBean方法之前，在createBean方法中会从BeanDefinition中获取bean的class（一般xml配置时，beanClass都是String类型className，需要转换成class）。并且在bean实例化前给InstantiationAwareBeanPostProcessor一个机会，直接返回一个代理Bean对象，而不需要进行真正的对象创建。
+
+doCreateBean创建对象的主要步骤如下：
+
+1. createBeanInstance实例化一个对象。实例化过程中最普遍的方式是通过默认构造函数newInstance一个实例出来。在这之前，会依次尝试从Supplier获取，尝试从FactoryMethod构建。尝试使用SmartInstantiationAwareBeanPostProcessor选取备选构造函数列表，确定构造函数（ConstructorResolver），并使用InstantiationStrategy进行实例化。
+2. 给MergedBeanDefinitionPostProcessor一个机会对BeanDefinition进行修改。
+3. 在populateBean之前，会将生成的单例实例用ObjectFactory包一层放入singletonFactories缓存中，用来处理单例的循环依赖。（ObjectFactory的getObject方法调用getEarlyBeanReference，其主要功能是遍历调用SmartInstantiationAwareBeanPostProcessor的getEarlyBeanReference方法）。如果使用了aop自动代理，getEarlyBeanReference会将Bean放入earlyProxyReferences中。
+4. populateBean填充对象实例的属性。步骤依次为：
+    - 在填充之前会调用postProcessAfterInstantiation修改对象状态；
+    - 处理自动装配（autowiring bean properties by name or by type）；
+    - 提供回调postProcessProperties和postProcessPropertyValues对注入的属性进行处理；
+    - 使用BeanDefinitionValueResolver处理BeanDefinition中定义的属性；
+    - 通过BeanWrapper的setPropertyValues进行属性设置,如果依赖的是一个ref的bean对象，就会触发getBean。
+5. initializeBean初始化bean对象。依次调用：
+    - invokeAwareMethods，对BeanNameAware、BeanClassLoaderAware、BeanFactoryAware进行set调用。
+    - applyBeanPostProcessorsBeforeInitialization，对象初始化之前的回调。
+    - invokeInitMethods，调用init方法。
+    - applyBeanPostProcessorsAfterInitialization，对象初始化之后的回调。aop的自动代理正是通过这一步对bean进行处理，返回一个代理对象。如果被循环依赖的bean已经被earlyProxyReferences生成过一次代理对象，在initializeBean的时候将不再进行自动代理，而是返回原始bean。
+6. 处理循环依赖的earlySingletonExposure。如果bean提前暴露且initializeBean返回的是原始对象，那么从earlySingletonReference中获取代理对象作为要返回的bean。
+7. 尝试注册DisposableBean。
+
+整个createBean的实现中，重点和难点是循环依赖的处理（需要考虑aop的情况）和BeanPostProcessor的应用。
+
+在上述doCreateBean函数执行的步骤3中，创建一个对象(createBeanInstance)之后，会将这个对象包装后放入singletonFactories缓存中：
+`addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));`
+当循环依赖发生时（假设有a和b两个相互依赖的对象定义），spring在创建a对象时，注入属性b时去创建b对象，而b对象又依赖a。
+b在获取a的时候会去SingletonBeanRegistry查找，此时会在singletonFactories中找到a的ObjectFactory，然后通过ObjectFactory的getObject方法调用getEarlyBeanReference。
+此方法中，如果有aop代理，会将原始bean放入beanPostProcessor的earlyProxyReferences中，并将生成的代理对象放入earlySingletonObjects中。这样b对象注入的就是一个aop代理对象，此时a已经提前暴露了。
+而此时b还在singletonFactories缓存中，并没有提前暴露，所以获取不到b的earlySingletonReference。因此b的exposedObject就是initializeBean之后的代理对象。于是将b添加到singletonObjects中，并移除b的singletonFactories缓存。
+完成b对象的获取后，就可以完成a的注入，然后初始化(initializeBean)a对象。因为a对象已经通过getEarlyBeanReference创建过代理，因此不需要再创建：`if (this.earlyProxyReferences.remove(cacheKey) != bean)`，initializeBean方法将返回原始的a。
+因为a提前暴露，所以可以找到一个提前暴露的代理对象（earlySingletonReference），因为initializeBean返回的a和原始的a相等，所以设置exposedObject为提前暴露的a的代理对象（earlySingletonReference）。最终完成a的创建，将a添加到singletonObjects中，移除singletonFactories和earlySingletonObjects缓存。
+
+=== BeanPostProcessor
+
+BeanPostProcessor提供了修改bean实例对象的能力。在factory 的 initializeBean 方法中，执行invokeInitMethods前后分别调用applyBeanPostProcessorsBeforeInitialization，applyBeanPostProcessorsAfterInitialization。
+
+> Factory hook that allows for custom modification of new bean instances &mdash; for example, checking for marker interfaces or wrapping beans with proxies.
+> An {@code ApplicationContext} can autodetect {@code BeanPostProcessor} beans in its bean definitions and apply those post-processors to any beans subsequently created. A plain {@code BeanFactory} allows for programmatic registration of post-processors, applying them to all beans created through the bean factory.
+
+```
+protected Object initializeBean(String beanName, Object bean, @Nullable RootBeanDefinition mbd) {
+    ...
+    invokeAwareMethods(beanName, bean);
+    ...
+    wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
+    ...
+    invokeInitMethods(beanName, wrappedBean, mbd);
+    ...
+    wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
+    ...
+    return wrappedBean;
+}
+```
+
+applyBeanPostProcessorsAfterInitialization除了在initializeBean中对init之后的bean进行处理，还对postProcessBeforeInstantiation返回的代理对象以及FactoryBean返回的Object对象进行处理。即需要对每个初始化的对象，不管通过何种方式初始化的，都要进行处理。
+
+image::BeanPostProcessor.png[]
+
+BeanPostProcessor有三个子接口：
+
+==== 1. MergedBeanDefinitionPostProcessor
+顾名思义，是对MergedBeanDefinition进行处理。回调的时机是在原始实例创建之后，属性注入之前。
+
+> The {@link #postProcessMergedBeanDefinition} method may for example introspect the bean definition in order to prepare some cached metadata before post-processing actual instances of a bean. It is also allowed to modify the bean definition but <i>only</i> for definition properties which are actually intended for concurrent modification. Essentially, this only applies to operations defined on the {@link RootBeanDefinition} itself but not to the properties of its base classes.
+
+==== 2. DestructionAwareBeanPostProcessor
+销毁bean的时候进行处理。AbstractAutowireCapableBeanFactory在创建了bean之后，会尝试去注册DisposableBean。注册时主要将拥有销毁方法的单例bean进行DisposableBeanAdapter适配，然后注册到单例注册器的disposableBeans中。
+
+> The typical usage will be to invoke custom destruction callbacks on specific bean types, matching corresponding initialization callbacks.
+
+==== 3. InstantiationAwareBeanPostProcessor
+在createBean的分析中已经得知，BeanFactory会在doCreateBean之前，给iabpp一个机会，通过TargetSources返回一个代理对象。它就是调用postProcessBeforeInstantiation来完成这项工作的。
+
+> Typically used to suppress default instantiation for specific target beans, for example to create proxies with special TargetSources (pooling targets, lazily initializing targets, etc), or to implement additional injection strategies such as field injection.
+
+同时，它还能在属性注入前修改bean的状态，并控制是否注入属性（postProcessAfterInstantiation返回false就不进行属性注入）。以及通过postProcessProperties和postProcessPropertyValues两个方法对将要注入的PropertyValues进行处理。
+
+该接口还存在一个子接口：SmartInstantiationAwareBeanPostProcessor。
+
+> adding a callback for predicting the eventual type of a processed bean.
+除了预判返回的bean类型，它还在创建bean原始实例时尝试从候选构造函数列表中选定一个构造函数。以及为了解决循环依赖获取提前暴露的bean。如果一个对象提前获取过一次，就会将它放到earlyProxyReferences缓存中。aop过程中，就是通过在postProcessAfterInitialization中检查对象是不是在缓存中来避免重复要调用wrapIfNecessary（aop实现中的getEarlyBeanReference方法同样调用了wrapIfNecessary）。
+
+=== DefaultListableBeanFactory
+> Spring's default implementation of the {@link ConfigurableListableBeanFactory} and {@link BeanDefinitionRegistry} interfaces: a full-fledged bean factory based on bean definition metadata, extensible through post-processors.
+
+其实，在整个BeanFactory类层次中，还有一个基于DefaultListableBeanFactory扩展了XML配置的读取功能的XmlBeanFactory。但在Spring 3.1后标记为@deprecated，转而鼓励使用BeanDefinitionReader 和 BeanDefinitionRegistry。DefaultListableBeanFactory正是BeanDefinitionRegistry的实现。
+
+DefaultListableBeanFactory的典型用法就是先从配置文件中读取所有的BeanDefinition，然后根据名称获取bean对象。
+
+> Typical usage is registering all bean definitions first (possibly read from a bean definition file), before accessing beans. Bean lookup by name is therefore an inexpensive operation in a local bean definition table, operating on pre-resolved bean definition metadata objects.
+
+image::DefaultListableBeanFactory.png[]
+
+DefaultListableBeanFactory拥有三个开关：
+
+- allowBeanDefinitionOverriding
+  是否允许beanDefinition覆盖注册，默认为true。
+
+> whether it should be allowed to override bean definitions by registering a different definition with the same name, automatically replacing the former.
+
+- allowEagerClassLoading 
+  是否允许beanDefinition在标记为懒加载时，也可以在需要的时候（尤其是getByType的时候）获取beanDefinition的name，默认为true。
+
+> whether the factory is allowed to eagerly load bean classes even for bean definitions that are marked as "lazy-init".
+
+- configurationFrozen
+  是否冻结配置。冻结以后，beanDefinitionNames列表（ArrayList）将会缓存到frozenBeanDefinitionNames数组（String[]）中，当getBeanDefinitionNames方法调用时返回给调用者。
+
+> Whether bean definition metadata may be cached for all beans.
+
+DefaultListableBeanFactory的实现有以下几大块：
+
+1. 实现基类AbstractAutowireCapableBeanFactory剩余的没有实现的BeanFactory方法。
+主要实现通过类型获取bean对象或者ObjectProvider。
+2. 实现ListableBeanFactory接口
+3. 实现ConfigurableListableBeanFactory中定义的接口方法
+4. 实现BeanDefinitionRegistry接口
+beanDefinitionMap就是存放beanDefiniton的一个ConcurrentHashMap，beanDefinitionNames则存放了所有注册了的beanDefiniton的名称。
+5. 处理依赖的解决方案实现
+主要解决通过类型注入时如何找到一个合适的bean的问题。
+
