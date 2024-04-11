@@ -210,8 +210,14 @@ BeanFactory的实现继承了AliasRegistry的实现SimpleAliasRegistry，AliasRe
 
 image::ConfigurableListableBeanFactory_1.png[]
 
-== 注册器 Registry
+== BeanFactory的实现
+java是单继承的语言，所以DefaultListableBeanFactory的继承链是条单链。可参考下图蓝色实线箭头方向。
+
+image::ConfigurableListableBeanFactory.png[]
+
 在BeanFactory的接口层次设计中，定义了三个注册器：AliasRegistry、BeanDefinitionRegistry和SingletonBeanRegistry，主要功能是暂存数据。这种设计方式也被称为注册者模式，使用一个中央容器对象，将相关对象注册进来，提供全局共享，对象交换的功能。
+
+最上层的两个实现，是对注册的实现。另一个注册器，BeanDefinitionRegistry没有单独的默认实现类，而是由DefaultListableBeanFactory直接实现。
 
 === AliasRegistry
 别名注册器，用于管理别名。一个对象在容器中注册的时候，可以指定别名，也可以专门为一个名称配置一个别名。
@@ -303,13 +309,6 @@ BeanDefinition注册器，用于管理BeanDefinition。整个SpringBeanFactory�
 <p>Spring's bean definition readers expect to work on an implementation of this interface. Known implementors within the Spring core are DefaultListableBeanFactory and GenericApplicationContext.
 
 image::BeanDefinitionRegistry.png[]
-
-== BeanFactory的实现
-java是单继承的语言，所以DefaultListableBeanFactory的继承链是条单链。可参考下图蓝色实线箭头方向。
-
-image::ConfigurableListableBeanFactory.png[]
-
-最上层的两个实现，是对注册的实现。另一个注册器，BeanDefinitionRegistry没有单独的默认实现类，而是由DefaultListableBeanFactory直接实现。
 
 BeanFactory的实现，主要由三个类来完成：
 
@@ -407,55 +406,7 @@ b在获取a的时候会去SingletonBeanRegistry查找，此时会在singletonFac
 完成b对象的获取后，就可以完成a的注入，然后初始化(initializeBean)a对象。因为a对象已经通过getEarlyBeanReference创建过代理，因此不需要再创建：`if (this.earlyProxyReferences.remove(cacheKey) != bean)`，initializeBean方法将返回原始的a。
 因为a提前暴露，所以可以找到一个提前暴露的代理对象（earlySingletonReference），因为initializeBean返回的a和原始的a相等，所以设置exposedObject为提前暴露的a的代理对象（earlySingletonReference）。最终完成a的创建，将a添加到singletonObjects中，移除singletonFactories和earlySingletonObjects缓存。
 
-=== BeanPostProcessor
-
-BeanPostProcessor提供了修改bean实例对象的能力。在factory 的 initializeBean 方法中，执行invokeInitMethods前后分别调用applyBeanPostProcessorsBeforeInitialization，applyBeanPostProcessorsAfterInitialization。
-
-> Factory hook that allows for custom modification of new bean instances &mdash; for example, checking for marker interfaces or wrapping beans with proxies.
-> An {@code ApplicationContext} can autodetect {@code BeanPostProcessor} beans in its bean definitions and apply those post-processors to any beans subsequently created. A plain {@code BeanFactory} allows for programmatic registration of post-processors, applying them to all beans created through the bean factory.
-
-```
-protected Object initializeBean(String beanName, Object bean, @Nullable RootBeanDefinition mbd) {
-    ...
-    invokeAwareMethods(beanName, bean);
-    ...
-    wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
-    ...
-    invokeInitMethods(beanName, wrappedBean, mbd);
-    ...
-    wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
-    ...
-    return wrappedBean;
-}
-```
-
-applyBeanPostProcessorsAfterInitialization除了在initializeBean中对init之后的bean进行处理，还对postProcessBeforeInstantiation返回的代理对象以及FactoryBean返回的Object对象进行处理。即需要对每个初始化的对象，不管通过何种方式初始化的，都要进行处理。
-
-image::BeanPostProcessor.png[]
-
-BeanPostProcessor有三个子接口：
-
-==== 1. MergedBeanDefinitionPostProcessor
-顾名思义，是对MergedBeanDefinition进行处理。回调的时机是在原始实例创建之后，属性注入之前。
-
-> The {@link #postProcessMergedBeanDefinition} method may for example introspect the bean definition in order to prepare some cached metadata before post-processing actual instances of a bean. It is also allowed to modify the bean definition but <i>only</i> for definition properties which are actually intended for concurrent modification. Essentially, this only applies to operations defined on the {@link RootBeanDefinition} itself but not to the properties of its base classes.
-
-==== 2. DestructionAwareBeanPostProcessor
-销毁bean的时候进行处理。AbstractAutowireCapableBeanFactory在创建了bean之后，会尝试去注册DisposableBean。注册时主要将拥有销毁方法的单例bean进行DisposableBeanAdapter适配，然后注册到单例注册器的disposableBeans中。
-
-> The typical usage will be to invoke custom destruction callbacks on specific bean types, matching corresponding initialization callbacks.
-
-==== 3. InstantiationAwareBeanPostProcessor
-在createBean的分析中已经得知，BeanFactory会在doCreateBean之前，给iabpp一个机会，通过TargetSources返回一个代理对象。它就是调用postProcessBeforeInstantiation来完成这项工作的。
-
-> Typically used to suppress default instantiation for specific target beans, for example to create proxies with special TargetSources (pooling targets, lazily initializing targets, etc), or to implement additional injection strategies such as field injection.
-
-同时，它还能在属性注入前修改bean的状态，并控制是否注入属性（postProcessAfterInstantiation返回false就不进行属性注入）。以及通过postProcessProperties和postProcessPropertyValues两个方法对将要注入的PropertyValues进行处理。
-
-该接口还存在一个子接口：SmartInstantiationAwareBeanPostProcessor。
-
-> adding a callback for predicting the eventual type of a processed bean.
-除了预判返回的bean类型，它还在创建bean原始实例时尝试从候选构造函数列表中选定一个构造函数。以及为了解决循环依赖获取提前暴露的bean。如果一个对象提前获取过一次，就会将它放到earlyProxyReferences缓存中。aop过程中，就是通过在postProcessAfterInitialization中检查对象是不是在缓存中来避免重复要调用wrapIfNecessary（aop实现中的getEarlyBeanReference方法同样调用了wrapIfNecessary）。
+如果没有aop代理，那么exposedObject 和 earlySingletonObjects 都是相同的（都是原始的bean对象）。
 
 === DefaultListableBeanFactory
 > Spring's default implementation of the {@link ConfigurableListableBeanFactory} and {@link BeanDefinitionRegistry} interfaces: a full-fledged bean factory based on bean definition metadata, extensible through post-processors.
@@ -496,3 +447,64 @@ beanDefinitionMap就是存放beanDefiniton的一个ConcurrentHashMap，beanDefin
 5. 处理依赖的解决方案实现
 主要解决通过类型注入时如何找到一个合适的bean的问题。
 
+== BeanPostProcessor
+
+BeanPostProcessor提供了修改bean实例对象的能力。在factory 的 initializeBean 方法中，执行invokeInitMethods前后分别调用applyBeanPostProcessorsBeforeInitialization，applyBeanPostProcessorsAfterInitialization。
+
+> Factory hook that allows for custom modification of new bean instances &mdash; for example, checking for marker interfaces or wrapping beans with proxies.
+> An {@code ApplicationContext} can autodetect {@code BeanPostProcessor} beans in its bean definitions and apply those post-processors to any beans subsequently created. A plain {@code BeanFactory} allows for programmatic registration of post-processors, applying them to all beans created through the bean factory.
+
+```
+protected Object initializeBean(String beanName, Object bean, @Nullable RootBeanDefinition mbd) {
+    ...
+    invokeAwareMethods(beanName, bean);
+    ...
+    wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
+    ...
+    invokeInitMethods(beanName, wrappedBean, mbd);
+    ...
+    wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
+    ...
+    return wrappedBean;
+}
+```
+
+applyBeanPostProcessorsAfterInitialization除了在initializeBean中对init之后的bean进行处理，还对postProcessBeforeInstantiation返回的代理对象以及FactoryBean返回的Object对象进行处理。即需要对每个初始化的对象，不管通过何种方式初始化的，都要进行处理。
+
+image::BeanPostProcessor.png[]
+
+BeanPostProcessor有三个子接口：
+
+=== 1. MergedBeanDefinitionPostProcessor
+顾名思义，是对MergedBeanDefinition进行处理。回调的时机是在原始实例创建之后，属性注入之前。
+
+> The {@link #postProcessMergedBeanDefinition} method may for example introspect the bean definition in order to prepare some cached metadata before post-processing actual instances of a bean. It is also allowed to modify the bean definition but <i>only</i> for definition properties which are actually intended for concurrent modification. Essentially, this only applies to operations defined on the {@link RootBeanDefinition} itself but not to the properties of its base classes.
+
+=== 2. DestructionAwareBeanPostProcessor
+销毁bean的时候进行处理。AbstractAutowireCapableBeanFactory在创建了bean之后，会尝试去注册DisposableBean。注册时主要将拥有销毁方法的单例bean进行DisposableBeanAdapter适配，然后注册到单例注册器的disposableBeans中。
+
+> The typical usage will be to invoke custom destruction callbacks on specific bean types, matching corresponding initialization callbacks.
+
+=== 3. InstantiationAwareBeanPostProcessor
+在createBean的分析中已经得知，BeanFactory会在doCreateBean之前，给iabpp一个机会，通过TargetSources返回一个代理对象。它就是调用postProcessBeforeInstantiation来完成这项工作的。
+
+> Typically used to suppress default instantiation for specific target beans, for example to create proxies with special TargetSources (pooling targets, lazily initializing targets, etc), or to implement additional injection strategies such as field injection.
+
+同时，它还能在属性注入前修改bean的状态，并控制是否注入属性（postProcessAfterInstantiation返回false就不进行属性注入）。以及通过postProcessProperties和postProcessPropertyValues两个方法对将要注入的PropertyValues进行处理。
+
+该接口还存在一个子接口：SmartInstantiationAwareBeanPostProcessor。
+
+> adding a callback for predicting the eventual type of a processed bean.
+除了预判返回的bean类型，它还在创建bean原始实例时尝试从候选构造函数列表中选定一个构造函数。以及为了解决循环依赖获取提前暴露的bean。如果一个对象提前获取过一次，就会将它放到earlyProxyReferences缓存中。aop过程中，就是通过在postProcessAfterInitialization中检查对象是不是在缓存中来避免重复要调用wrapIfNecessary（aop实现中的getEarlyBeanReference方法同样调用了wrapIfNecessary）。
+
+== BeanWrapper
+
+> The central interface of Spring's low-level JavaBeans infrastructure.
+
+BeanWrapper 通过`setPropertyValue`和`getPropertyValue`方法设置或者获取JavaBean中的值。BeanWrapper的实现，依赖Java Beans PropertyEditor。
+
+> Spring uses property editors heavily for managing conversion between String values and custom Object types
+
+JDK提供了PropertyEditorSupport来帮助构建property editors。Spring在PropertyEditorRegistrySupport中维护了一个defaultEditors注册了Spring自定义的editors。同时提供customEditors开发给用户注册自定义的editors。
+
+image::BeanWrapperImpl.png[]
