@@ -475,17 +475,17 @@ image::BeanPostProcessor.png[]
 
 BeanPostProcessor有三个子接口：
 
-=== 1. MergedBeanDefinitionPostProcessor
+=== MergedBeanDefinitionPostProcessor
 顾名思义，是对MergedBeanDefinition进行处理。回调的时机是在原始实例创建之后，属性注入之前。
 
 > The {@link #postProcessMergedBeanDefinition} method may for example introspect the bean definition in order to prepare some cached metadata before post-processing actual instances of a bean. It is also allowed to modify the bean definition but <i>only</i> for definition properties which are actually intended for concurrent modification. Essentially, this only applies to operations defined on the {@link RootBeanDefinition} itself but not to the properties of its base classes.
 
-=== 2. DestructionAwareBeanPostProcessor
+=== DestructionAwareBeanPostProcessor
 销毁bean的时候进行处理。AbstractAutowireCapableBeanFactory在创建了bean之后，会尝试去注册DisposableBean。注册时主要将拥有销毁方法的单例bean进行DisposableBeanAdapter适配，然后注册到单例注册器的disposableBeans中。
 
 > The typical usage will be to invoke custom destruction callbacks on specific bean types, matching corresponding initialization callbacks.
 
-=== 3. InstantiationAwareBeanPostProcessor
+=== InstantiationAwareBeanPostProcessor
 在createBean的分析中已经得知，BeanFactory会在doCreateBean之前，给iabpp一个机会，通过TargetSources返回一个代理对象。它就是调用postProcessBeforeInstantiation来完成这项工作的。
 
 > Typically used to suppress default instantiation for specific target beans, for example to create proxies with special TargetSources (pooling targets, lazily initializing targets, etc), or to implement additional injection strategies such as field injection.
