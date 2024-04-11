@@ -476,7 +476,7 @@ image::BeanPostProcessor.png[]
 BeanPostProcessor有三个子接口：
 
 === MergedBeanDefinitionPostProcessor
-顾名思义，是对MergedBeanDefinition进行处理。回调的时机是在原始实例创建之后，属性注入之前。
+顾名思义，是对MergedBeanDefinition进行处理。回调的时机是在原始实例创建之后，属性注入之前。比如AutowiredAnnotationBeanPostProcessor就是在postProcessMergedBeanDefinition中去查找AutowiringMetadata的。
 
 > The {@link #postProcessMergedBeanDefinition} method may for example introspect the bean definition in order to prepare some cached metadata before post-processing actual instances of a bean. It is also allowed to modify the bean definition but <i>only</i> for definition properties which are actually intended for concurrent modification. Essentially, this only applies to operations defined on the {@link RootBeanDefinition} itself but not to the properties of its base classes.
 
@@ -491,11 +491,14 @@ BeanPostProcessor有三个子接口：
 > Typically used to suppress default instantiation for specific target beans, for example to create proxies with special TargetSources (pooling targets, lazily initializing targets, etc), or to implement additional injection strategies such as field injection.
 
 同时，它还能在属性注入前修改bean的状态，并控制是否注入属性（postProcessAfterInstantiation返回false就不进行属性注入）。以及通过postProcessProperties和postProcessPropertyValues两个方法对将要注入的PropertyValues进行处理。
+再以 AutowiredAnnotationBeanPostProcessor 为例，就是在postProcessProperties中，将查找到的AutowiringMetadata注入到bean中的。
 
 该接口还存在一个子接口：SmartInstantiationAwareBeanPostProcessor。
 
 > adding a callback for predicting the eventual type of a processed bean.
-除了预判返回的bean类型，它还在创建bean原始实例时尝试从候选构造函数列表中选定一个构造函数。以及为了解决循环依赖获取提前暴露的bean。如果一个对象提前获取过一次，就会将它放到earlyProxyReferences缓存中。aop过程中，就是通过在postProcessAfterInitialization中检查对象是不是在缓存中来避免重复要调用wrapIfNecessary（aop实现中的getEarlyBeanReference方法同样调用了wrapIfNecessary）。
+
+除了预判返回的bean类型，它还在创建bean原始实例时尝试从候选构造函数列表中选定一个构造函数。
+以及为了解决循环依赖获取提前暴露的bean。如果一个对象提前获取过一次，就会将它放到earlyProxyReferences缓存中。aop过程中，就是通过在postProcessAfterInitialization中检查对象是不是在缓存中来避免重复要调用wrapIfNecessary（aop实现中的getEarlyBeanReference方法同样调用了wrapIfNecessary）。
 
 == BeanWrapper
 
@@ -505,6 +508,49 @@ BeanWrapper 通过`setPropertyValue`和`getPropertyValue`方法设置或者获�
 
 > Spring uses property editors heavily for managing conversion between String values and custom Object types
 
-JDK提供了PropertyEditorSupport来帮助构建property editors。Spring在PropertyEditorRegistrySupport中维护了一个defaultEditors注册了Spring自定义的editors。同时提供customEditors开发给用户注册自定义的editors。
+JDK提供了PropertyEditorSupport来帮助构建property editors。
+BeanWrapper本身就是一个PropertyEditorRegistry，其实现继承了PropertyEditorRegistrySupport, 其中维护了一个defaultEditors用于注册Spring定义的editors，同时还有一个customEditors开放给用户注册自定义的editors。
+BeanFactory在initBeanWrapper时，会将CustomEditors注册到BeanWrapper中。
 
 image::BeanWrapperImpl.png[]
+
+=== AutomaticBinding
+
+BeanFactory在属性注入的时候，会尝试查找对应的Editor
+
+> Standard JavaBeans infrastructure will automatically discover PropertyEditor classes if they are in the same package as the class they handle. Also, these need to have the same name as that class plus the Editor suffix.
+
+```
+try {
+    Class<?> editorClass = cl.loadClass(editorName);
+    if (editorClass != null) {
+        if (!PropertyEditor.class.isAssignableFrom(editorClass)) {
+            unknownEditorTypes.add(targetType);
+            return null;
+        }
+        return (PropertyEditor) instantiateClass(editorClass);
+    }
+    // Misbehaving ClassLoader returned null instead of ClassNotFoundException
+    // - fall back to unknown editor type registration below
+}
+```
+
+=== CustomBinding
+
+自动绑定需要需要JavaBeans 和 Editor 在同一个包里，且Editor的名称为ClassName + Editor。在无法满足这两个要求的情况下，可以使用Custom Property Editor Binding。将自定义的Editor注册到BeanFacotry中。
+
+```
+/**
+ * Register the given custom property editor for all properties of the
+ * given type. To be invoked during factory configuration.
+ * <p>Note that this method will register a shared custom editor instance;
+ * access to that instance will be synchronized for thread-safety. It is
+ * generally preferable to use {@link #addPropertyEditorRegistrar} instead
+ * of this method, to avoid for the need for synchronization on custom editors.
+ * @param requiredType type of the property
+ * @param propertyEditorClass the {@link PropertyEditor} class to register
+ */
+void registerCustomEditor(Class<?> requiredType, Class<? extends PropertyEditor> propertyEditorClass);
+```
+
+https://www.baeldung.com/spring-mvc-custom-property-editor
