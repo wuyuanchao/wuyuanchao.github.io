@@ -1,0 +1,55 @@
+---
+title: "BeanDefinition"
+weight: 1
+# bookFlatSection: false
+# bookToc: true
+# bookHidden: false
+# bookCollapseSection: false
+# bookComments: false
+# bookSearchExclude: false
+---
+
+= BeanDefinition
+:toc:
+:imagesdir: images
+
+== BeanDefinitoin
+
+> A BeanDefinition describes a bean instance, which has property values, constructor argument values, and further information supplied by concrete implementations. 
+
+image::AbstractBeanDefinition.png[]
+
+Within the container itself, these bean definitions are represented as BeanDefinition objects, which contain (among other information) the following metadata:
+
+- A package-qualified class name: typically, the actual implementation class of the bean being defined.
+
+- Bean behavioral configuration elements, which state how the bean should behave in the container (scope, lifecycle callbacks, and so forth).
+
+- References to other beans that are needed for the bean to do its work. These references are also called collaborators or dependencies.
+
+- Other configuration settings to set in the newly created object — for example, the size limit of the pool or the number of connections to use in a bean that manages a connection pool.
+
+== BeanDefinitionRegistry 
+
+DefaultListableBeanFactory是一个BeanDefinitionRegistry，BeanDefinitionRegistry 是 Spring 的 bean 工厂包中唯一封装 BeanDefinition 注册的接口。也就是说 BeanDefinition 只能通过这个接口注册到BeanFactory中。
+
+Spring提供了一个BeanDefinition读取器的简单接口:BeanDefinitionReader。
+比如：XmlBeanDefinitionReader 就是Spring读取XML bean definitions 的 BeanDefinitionReader 实现。
+
+但并不是所有的读取器都要实现这个接口，它是一个想要遵循标准命名约定的建议。
+比如：ConfigurationClassBeanDefinitionReader 就是从 ConfigurationClass instances 集合中读取bean definitions并注册到BeanDefinitionRegistry中，但并没有实现BeanDefinitionReader接口。
+
+> Note that a bean definition reader does not have to implement this interface. It only serves as a suggestion for bean definition readers that want to follow standard naming conventions.
+
+=== XmlBeanDefinitionReader
+
+image::XmlBeanDefinitionReader.png[]
+
+XML是Spring定义配置元数据的传统格式。比如在传统的使用web.xml描述文件进行配置的Spring web应用中，DispatcherServlet 会持有一个WebApplicationContext，它的默认实现就是XmlWebApplicationContext。这个wac就是通过XmlBeanDefinitionReader读取xml文件注册定义的BeanDefinitions。
+
+每次读取一个resource，reader都会create一个XmlReaderContext，其中包括要解析的 Resource， 以及 ProblemReporter、ReaderEventListener、SourceExtractor、XmlBeanDefinitionReader 和 NamespaceHandlerResolver。
+
+spring默认的namespace(以下简称ns)为：`http://www.springframework.org/schema/beans`
+其他ns都需要通过NamespaceHandlerResolver获取到对应的NamespaceHandler。
+NamespaceHandlerResolver 会从 META-INF/spring.handlers 读取配置，并根据配置的handler-class初始化handler对象，把 namespace 和 对应的 handler 对象 放到 handlerMappings 中。NamespaceHandlerResolver 由 BeanDefinitionReader 创建，并当作构造参数传递给 XmlReaderContext。
+解析的真正工作是交给 BeanDefinitionParserDelegate 实现的。构建delegate对象的时候，需要XmlReaderContext对象作为构造参数。

@@ -1,0 +1,37 @@
+---
+title: Introduction
+type: docs
+---
+
+# Introduction
+
+
+## Hello World!
+
+----
+% cat <<  EOF > Main.java
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello World");
+    }
+}
+EOF
+javac Main.java && java Main
+----
+
+
+## Open for Extension, Closed for Modification
+
+{{< columns >}}
+
+本人长期从事电商平台 java 服务端的研发及领导工作。在跨境电商领域有非常丰富的经验。善于专研，能力突出。
+
+<--->
+
+热衷于面向对象思想，精通设计模式，致力于打造高可重用、易维护的设计和高质量、可读性强的代码实现。
+
+{{< /columns >}}
+
+[quote,周志明,《深入理解java虚拟机》]
+世界上并没有完美的程序，但我们并不因此而沮丧，因为写程序本来就是一个不断追求完美的过程。
+

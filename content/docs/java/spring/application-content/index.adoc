@@ -1,9 +1,11 @@
 ---
-title: "Spring Application Context"
+title: "ApplicationContext"
 date: 2023-06-22T10:39:09+08:00
 ---
+= Application Context
+:toc:
 
-### ApplicationContext
+== ApplicationContext
 是为应用程序提供配置的中央接口。从类图可以看出，它通过继承其他接口，组合成一个功能强大的容器。
 
 image::GenericApplicationContext.png[]
@@ -17,7 +19,7 @@ An ApplicationContext provides:
 > - The ability to resolve messages, supporting internationalization. Inherited from the MessageSource interface.
 > - Inheritance from a parent context. Definitions in a descendant context will always take priority. This means, for example, that a single parent context can be used by an entire web application, while each servlet has its own child context that is independent of that of any other servlet.
 
-### AbstractApplicationContext
+=== AbstractApplicationContext
 使用模版方法设计模式，简单地实现了通用的上下文功能。其中 refresh() 是启动方法。
 
 > Load or refresh the persistent representation of the configuration, which might be from Java-based configuration, an XML file, a properties file, a relational database schema, or some other format.
@@ -65,7 +67,7 @@ finishBeanFactoryInitialization(beanFactory);
 finishRefresh();
 ----
 
-#### prepareBeanFactory()
+==== prepareBeanFactory()
 添加一些 beanPostProcessors :
 - ApplicationContextAwareProcessor
 - ApplicationListenerDetector
@@ -82,21 +84,21 @@ finishRefresh();
 - APPLICATION_STARTUP_BEAN_NAME
 
 
-#### registerBeanPostProcessors()
+==== registerBeanPostProcessors()
 从 beanFactory 的找出 beanPostProcessor 的 definition，并 getBean 设置到 beanPostProcessors 列表中
 
-#### initApplicationEventMulticaster()
+==== initApplicationEventMulticaster()
 初始化事件广播器（EventMulticaster）
 
-#### registerListeners()
+==== registerListeners()
 从 beanFactory 的找出 ApplicationListener 注册到 EventMulticaster 中
 
-#### finishBeanFactoryInitialization()
+==== finishBeanFactoryInitialization()
 - 冻结所有的beanDefinition，不允许再修改
 - 提前加载所有的非lazyInit的单例
 
 
-#### finishRefresh()
+==== finishRefresh()
 初始化 LifecycleProcessor， 默认 DefaultLifecycleProcessor 实现。并启动所有实现了SmartLifecycle 并且设置成 AutoStartup 的类。
 
 
