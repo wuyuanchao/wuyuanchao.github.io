@@ -19,4 +19,3 @@ org.springframework.beans.factory.support.DefaultSingletonBeanRegistry#addSingle
 这个方法是一个protected方法,目前只有在 `org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#doCreateBean` 方法中进行了调用。
 `AbstractAutowireCapableBeanFactory` 会将 `getEarlyBeanReference` 函数指针传递给 `ObjectFactory` ，只有发生循环依赖时，才会去调用 `getObject` ，从而调用 `getEarlyBeanReference` 方法。如果这时在beanFactory中有 `SmartInstantiationAwareBeanPostProcessor` ,会调用这个bpp的 getEarlyBeanReference 方法，否则返回原始的bean。
 
-其中我们最常用使用的是

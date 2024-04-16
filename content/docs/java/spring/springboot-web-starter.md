@@ -43,5 +43,6 @@ AnnotationConfigApplicationContext
 AnnotationConfigReactiveWebServerApplicationContext
 AnnotationConfigServletWebServerApplicationContext
 ```
-3. prepareContext
+
+#### 3. prepareContext
 在prepareContext方法中，会构建 BeanDefinitionLoader 

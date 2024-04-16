@@ -53,3 +53,62 @@ spring默认的namespace(以下简称ns)为：`http://www.springframework.org/sc
 其他ns都需要通过NamespaceHandlerResolver获取到对应的NamespaceHandler。
 NamespaceHandlerResolver 会从 META-INF/spring.handlers 读取配置，并根据配置的handler-class初始化handler对象，把 namespace 和 对应的 handler 对象 放到 handlerMappings 中。NamespaceHandlerResolver 由 BeanDefinitionReader 创建，并当作构造参数传递给 XmlReaderContext。
 解析的真正工作是交给 BeanDefinitionParserDelegate 实现的。构建delegate对象的时候，需要XmlReaderContext对象作为构造参数。
+
+每个 handler 会持有一组 BeanDefinitionParser，以 ContextNamespaceHandler 为例， 它在init时注册了8个parser：
+
+- PropertyPlaceholderBeanDefinitionParser
+- PropertyOverrideBeanDefinitionParser
+- AnnotationConfigBeanDefinitionParser
+- ComponentScanBeanDefinitionParser
+- LoadTimeWeaverBeanDefinitionParser
+- SpringConfiguredBeanDefinitionParser
+- MBeanExportBeanDefinitionParser
+- MBeanServerBeanDefinitionParser
+
+image::ContextNamespaceHandler.png[]
+
+=== ComponentScanBeanDefinitionParser
+
+除了使用xml配置Beans，我们还可以使用注解进行配置。
+我们需要在xml配置中，配置 `context:component-scan` ，spring会先通过 `context` 前缀确定 namespace，然后通过 NamespaceHandlerResolver 找到 namespace 对应的 NamespaceHandler。`context` 对应的 handler 是 `ContextNamespaceHandler`（继承自`NamespaceHandlerSupport`）, NamespaceHandlerSupport 的解析(parse)，又会委托给对应的 parser 去进行解析。`component-scan` 对应的parser 就是 `ComponentScanBeanDefinitionParser`。
+
+parser在进行解析(parse)时，会创建一个 ClassPathBeanDefinitionScanner
+
+image::ClassPathBeanDefinitionScanner.png[]
+
+通过 scaner 扫描出来的的 beanDefinition 以 `ScannedGenericBeanDefinition` 为实现类被注册到
+BeanDefinitionRegistry。这个完成BeanDefinition注册的实现，就没有实现BeanDefinitionReader。
+
+#### ConfigurationClassPostProcessor
+
+application在refresh的过程中，会调用 invokeBeanFactoryPostProcessors 来对 beanFactory进行后处理。后处理过程委托给 PostProcessorRegistrationDelegate 进行实现。
+
+Delegate 会优先找出 BeanDefinitionRegistryPostProcessor 进行后处理，其中 `ConfigurationClassPostProcessor` 是配置了component-scan 后 默认被注册到register中的一个BeanDefinitionRegistryPostProcessor，
+
+> This post processor is priority-ordered as it is important that any @Bean methods declared in @Configuration classes have their corresponding bean definitions registered before any other BeanFactoryPostProcessor executes.
+
+当配置了 <context:annotation-config/> or <context:component-scan/> 后， 默认就会注册 名称为 “org.springframework.context.annotation.internalConfigurationAnnotationProcessor”，class 为 ConfigurationClassPostProcessor 的 beanDefinition。
+
+
+> `<context:annotation-config> is used to activate annotations in beans already registered in the application context (no matter if they were defined with XML or by package scanning).
+<context:component-scan> can also do what <context:annotation-config> does but <context:component-scan> also scans packages to find and register beans within the application context.`
+
+`<context:annotation-config/>` 和 `<context:component-scan/>` 的区别在于component-scan会多一步扫描包来发现bean。
+
+具体可参见：
+https://stackoverflow.com/questions/7414794/difference-between-contextannotation-config-and-contextcomponent-scan
+
+#### ConfigurationClassParser
+
+beanDefinition加载完毕后，通过 scaner 扫描出来的的 beanDefinition 以 `ScannedGenericBeanDefinition` 为实现类(实现了 `AnnotatedBeanDefinition` 接口 )被注册到
+BeanDefinitionRegistry。
+
+image::ScannedGenericBeanDefinition.png[]
+
+ConfigurationClassPostProcessor 会找出 注册的 `AnnotatedBeanDefinition`，然后创建ConfigurationClassParser 对 @Configuration 的class 进行解析（@Component也行）。
+
+parser首先通过beanDefintion获取metadata和beanName构造一个ConfigurationClass对象，然后对这个ConfigurationClass对象进行解析。(因此这个 parser 是 ConfigurationClassParser， 用来解析 ConfigurationClass 的。)
+
+#### ConfigurationClassBeanDefinitionReader
+
+解析完 ConfigurationClass， ConfigurationClassPostProcessor 会构建 ConfigurationClassBeanDefinitionReader 读取 ConfigurationClass 中的配置，然后注册 ConfigurationClassBeanDefinition 到 registry 中。

@@ -11,3 +11,6 @@ weight: 1
 
 #### Java 全栈知识体系:
 https://pdai.tech/md/outline/x-outline.html
+
+#### Java编程书籍
+https://github.com/RongleXie/java-books-collections/tree/master
