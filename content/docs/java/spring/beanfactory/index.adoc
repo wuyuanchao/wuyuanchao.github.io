@@ -554,3 +554,11 @@ void registerCustomEditor(Class<?> requiredType, Class<? extends PropertyEditor>
 ```
 
 https://www.baeldung.com/spring-mvc-custom-property-editor
+
+== Dependency Resolution Process
+容器处理依赖的过程如下：
+
+1. 使用配置元数据创建和初始化容器。这些配置元数据描述了容器管理的所有bean。
+2. 对于每个bean，它的依赖项以属性、构造函数参数或静态工厂方法参数的形式表示。在bean对象真正创建时，容器会提供这些依赖。
+3. 这些依赖，可能是某种类型的值或集合，也可能是对容器中另一个bean的引用。
+4. 如果是值，每种类型都有指定的转换器（Editor）将特定格式的配置信息转换成特定的类型。
