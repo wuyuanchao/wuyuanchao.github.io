@@ -1,6 +1,7 @@
 ---
 title: "ApplicationContext"
 date: 2023-06-22T10:39:09+08:00
+weight: 3
 ---
 = Application Context
 :toc:
@@ -155,15 +156,17 @@ BeanPostProcessor 处理Bean对象，并且只处理BeanPostProcessor所在容�
 BeanPostProcessor包含两个回调方法,回调发生在属性注入之(populateBean函数执行完成之后),一个在初始化前，一个在初始化后：
 
 1. postProcessBeforeInitialization
-
++
 > Apply this BeanPostProcessor to the given new bean instance before any bean initialization callbacks (like InitializingBean's afterPropertiesSet or a custom init-method). The bean will already be populated with property values. 
-
++
 比如：ApplicationContextAwareProcessor就是在这时，判断实例化的bean是不是EnvironmentAware、EmbeddedValueResolverAware、ResourceLoaderAware、ApplicationEventPublisherAware、MessageSourceAware、ApplicationContextAware、ApplicationStartupAware接口的实例，然后进行相应的Aware回调的。
++
+值得注意的是：BeanNameAware、BeanClassLoaderAware、BeanFactoryAware这三个Aware的回调是在invokeAwareMethods方法中执行的，不是通过ApplicationContextAwareProcessor处理的，因为这三个不属于ApplicationContext上下文，而是BeanFactory内置的。这又一次体现了Spring在类和包设计上的优秀之处，值的学习。
 
 2. postProcessAfterInitialization
-
++
 > Apply this BeanPostProcessor to the given new bean instance after any bean initialization callbacks (like InitializingBean's afterPropertiesSet or a custom init-method). The bean will already be populated with property values. 
-
++
 比如：ApplicationListenerDetector就是在这时，通过判断bean对象是不是ApplicationListener的实例，把listener注册到容器中的。
 
 Spring进行BeanPostProcessor的回调代码如下：
@@ -225,7 +228,9 @@ ApplicationContext 允许 BeanFactoryPostProcessor 读取元配置数据(BeanDif
 
 如果需要获取FactoryBean本身，可以在id前添加 & : `getBean("&myBean")` 。
 
-=== 扩展点举例(Annotation-based Container Configuration)
+=== 扩展点举例
+
+==== Annotation-based Container Configuration
 
 Spring中基于注解的配置，就是通过一系列Bean(Factory)PostProcessors实现的。Spring还提供了快捷方式帮助开发人员快速注册这些BeanPostProcessors。
 
@@ -246,11 +251,63 @@ Spring中基于注解的配置，就是通过一系列Bean(Factory)PostProcessor
 
 其中的 `<context:annotation-config/>` 元素隐式注册以下后处理器(元素的解析由ContextNamespaceHandler处理)：
 
-- ConfigurationClassPostProcessor。这是一个BeanFactoryPostProcessor, 处理 `@Configuration` 注解。 
-- AutowiredAnnotationBeanPostProcessor。这是一个BeanPostProcessor, 我们常用的 `@Autowired` `@Value` 两个注解就是由它进行处理。
-- CommonAnnotationBeanPostProcessor。 这也是一个BeanPostProcessor， `@Resource`  `@PostConstruct`  `@PreDestroy` 等注解都由它处理。
-- EventListenerMethodProcessor。 这是一个 BeanFactoryPostProcessor ，处理 `@EventListener`
-- PersistenceAnnotationBeanPostProcessor。处理JPA注解（if jpa Present）。
+- ConfigurationClassPostProcessor(internalConfigurationAnnotationProcessor)。这是一个BeanFactoryPostProcessor, 处理 `@Configuration` 注解，如果有 `@Bean` 注解的方法（即使类上没有配置 `@Configuration` ）也会被识别到。然后通过 ConfigurationClassBeanDefinitionReader 从被注解的类中加载配置信息并注册到 BeanDefinitionRegistry 中。
+- AutowiredAnnotationBeanPostProcessor(internalAutowiredAnnotationProcessor)。这是一个BeanPostProcessor, 我们常用的 `@Autowired` `@Value` 两个注解就是由它进行处理。也支持 JSR-330's `@Inject` （这个注解可以用来替换 `@Autowired` ）
+- CommonAnnotationBeanPostProcessor(internalCommonAnnotationProcessor)。 这也是一个BeanPostProcessor， `@Resource`  `@PostConstruct`  `@PreDestroy` 等注解都由它处理。
++
+> supports common Java annotations out of the box, in particular the JSR-250 annotations in the javax.annotation package. 
+
+- EventListenerMethodProcessor(internalEventListenerProcessor)。 这是一个 BeanFactoryPostProcessor ，处理 `@EventListener`
+- PersistenceAnnotationBeanPostProcessor(internalPersistenceAnnotationProcessor)。处理JPA注解（if jpa present）。
 
 
 image::Annotation-config.png[]
+
+==== AbstractAdvisingBeanPostProcessor
+
+Spring通过三级缓存很好地解决了大多数场景的循环依赖问题，但是工作中有时也会遇到因为循环依赖失败的问题。最常见的就是使用了 `@Async` 或者 `@Validated` 注解的情况。
+
+image::AbstractAdvisingBeanPostProcessor.png[]
+
+这两个注解的解析，分别是通过 AsyncAnnotationBeanPostProcessor 和 MethodValidationPostProcessor 来处理的。它们是AbstractBeanFactoryAwareAdvisingPostProcessor的子类，AbstractBeanFactoryAwareAdvisingPostProcessor 又是 AbstractAdvisingBeanPostProcessor的子类。
+这一簇的BeanPostProcessor处理逻辑是，在初始化这个BeanPostProcessor时构造一个Advisor（包含Advice 和 PointCut）,注册到BeanPostProcessors队列中。
+当后续有Bean对象创建时，这个bpp 就会在 postProcessAfterInitialization 检测当前对象是否能被PointCut切到，如果可以，就使用proxyFactory创建代理对象。
+
+以AsyncAnnotationBeanPostProcessor为例，它创建了一个类和方法上注解 `@Async` 或者 `@javax.ejb.Asynchronous` 的 AnnotationMatchingPointcut 组合而成的 ComposablePointcut。
+
+```
+protected Pointcut buildPointcut(Set<Class<? extends Annotation>> asyncAnnotationTypes) {
+    ComposablePointcut result = null;
+    for (Class<? extends Annotation> asyncAnnotationType : asyncAnnotationTypes) {
+        Pointcut cpc = new AnnotationMatchingPointcut(asyncAnnotationType, true);
+        Pointcut mpc = new AnnotationMatchingPointcut(null, asyncAnnotationType, true);
+        if (result == null) {
+            result = new ComposablePointcut(cpc);
+        }
+        else {
+            result.union(cpc);
+        }
+        result = result.union(mpc);
+    }
+    return (result != null ? result : Pointcut.TRUE);
+}
+```
+
+但对于循环依赖的场景，被AOP代理的对象，需要提前暴露出去。以ObjectFactory的形式放在singletonFactories缓存中，在循环引用发生的时候，会应用所有的 SmartInstantiationAwareBeanPostProcessor ，此时如果需要自动代理，就会提前获取到代理对象。AbstractAutoProxyCreator 实现了自动代理的基本功能。然而 AsyncAnnotationBeanPostProcessor 和 MethodValidationPostProcessor 不是 SmartInstantiationAwareBeanPostProcessor, 而是普通的 BeanPostProcessor， 从而在循环依赖发生时，不会提前获取到自动代理对象。
+
+设有A B两个对象相互循环依赖，A中某个方法标记了 `@Async`, 当初始化A时，会将 ObjectFactory(lambda表达式 `() -> getEarlyBeanReference(beanName, mbd, bean)`) 放入singletonFactories, 进行DI时，因为依赖了B对象，于是初始化B。
+在对B进行依赖注入时，获取依赖对象时，就会执行getEarlyBeanReference方法，并将返回的Bean对象（因为没有 SmartInstantiationAwareBeanPostProcessor 所以返回的是原对象）放入 earlySingletonObjects（二级缓存） 中。此时B中注入的就是A的原始对象。完成B的初始化后，A的属性注入(populateBean)继续执行并直到完成后，开始执行 initializeBean。此时 AsyncAnnotationBeanPostProcessor 会被应用，从而得到一个A的代理对象。在最后初始化完成后，Spring会检查提前暴露的单例对象(earlySingletonReference),因为发生了循环依赖，获取所以在earlySingletonObjects存在被依赖的对象（A的原始对象），但是真正暴露的对象（exposedObject）是一个代理对象，此时就发生了不一致的情况，Spring就会抛一个 BeanCurrentlyInCreationException 异常：
+
+```
+Bean with name 'a' has been injected into other beans [b] in its raw version as part of a circular reference, but has eventually been wrapped.
+``` 
+
+整理清楚异常产生的过程，我们就可以选择对应的措施。一个相对简单的应对方法是让B在A之前初始化。
+
+```
+<bean id="a" class="org.example.model.ClassA" depends-on="b"/>
+<bean id="b" class="org.example.model.ClassB" />
+```
+
+通过以上配置，Spring会先初始化b对象，然后在初始化a的时候，a会去获取b的提前暴露对象，但b不会发生提前暴露对象和最终暴露的对象不一致的情况，于是a的属性注入成功，然后a继续init，并应用 AsyncAnnotationBeanPostProcessor 返回一个AOP代理对象，注入到b对象中。
+从原理可知，这种解决方案只适用于 a b 只存在一个有 @Async 注解的情况。不过两个循环依赖的对象，同时又都存在 @Async 或者 @Validated 注解的情况相对很少见。

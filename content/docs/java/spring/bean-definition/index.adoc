@@ -1,6 +1,6 @@
 ---
 title: "BeanDefinition"
-weight: 1
+weight: 2
 # bookFlatSection: false
 # bookToc: true
 # bookHidden: false
@@ -166,10 +166,10 @@ image::Scope.png[]
 
 从代码可以看出，Spring是不允许重写 singleton and prototype 这两个内建的scopes的。
 
-==== Singleton Beans with Prototype-bean Dependencies
+=== Singleton Beans with Prototype-bean Dependencies
 当一个单例bean对象依赖一个原型bean对象时，一定要清楚原型实例在第一次初始化时就已经确定好了。如果希望单例对象每次都能获取一个新的原型实例，不能使用依赖注入（dependency-inject ），可以考虑使用 Method Injection.
 
-==== Scoped Beans as Dependencies
+=== Scoped Beans as Dependencies
 
 如果您想将 HTTP 请求作用域的 bean 注入到另一个寿命较长作用域的 bean 中，则可以选择注入 AOP 代理来代替作用域 bean。
 

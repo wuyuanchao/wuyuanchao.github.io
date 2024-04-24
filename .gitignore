@@ -4,3 +4,4 @@ resources/_gen
 **/*.swp
 .idea
 .DS_Store
+hugo.log
