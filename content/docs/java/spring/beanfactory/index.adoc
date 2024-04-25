@@ -1,5 +1,5 @@
 ---
-title: "Beanfactory"
+title: "BeanFactory"
 weight: 1
 # bookFlatSection: false
 bookToc: true
@@ -447,59 +447,6 @@ beanDefinitionMap就是存放beanDefiniton的一个ConcurrentHashMap，beanDefin
 5. 处理依赖的解决方案实现
 主要解决通过类型注入时如何找到一个合适的bean的问题。
 
-== BeanPostProcessor
-
-BeanPostProcessor提供了修改bean实例对象的能力。在factory 的 initializeBean 方法中，执行invokeInitMethods前后分别调用applyBeanPostProcessorsBeforeInitialization，applyBeanPostProcessorsAfterInitialization。
-
-> Factory hook that allows for custom modification of new bean instances &mdash; for example, checking for marker interfaces or wrapping beans with proxies.
-> An {@code ApplicationContext} can autodetect {@code BeanPostProcessor} beans in its bean definitions and apply those post-processors to any beans subsequently created. A plain {@code BeanFactory} allows for programmatic registration of post-processors, applying them to all beans created through the bean factory.
-
-```
-protected Object initializeBean(String beanName, Object bean, @Nullable RootBeanDefinition mbd) {
-    ...
-    invokeAwareMethods(beanName, bean);
-    ...
-    wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
-    ...
-    invokeInitMethods(beanName, wrappedBean, mbd);
-    ...
-    wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
-    ...
-    return wrappedBean;
-}
-```
-
-applyBeanPostProcessorsAfterInitialization除了在initializeBean中对init之后的bean进行处理，还对postProcessBeforeInstantiation返回的代理对象以及FactoryBean返回的Object对象进行处理。即需要对每个初始化的对象，不管通过何种方式初始化的，都要进行处理。
-
-image::BeanPostProcessor.png[]
-
-BeanPostProcessor有三个子接口：
-
-=== MergedBeanDefinitionPostProcessor
-顾名思义，是对MergedBeanDefinition进行处理。回调的时机是在原始实例创建之后，属性注入之前。比如AutowiredAnnotationBeanPostProcessor就是在postProcessMergedBeanDefinition中去查找AutowiringMetadata的。
-
-> The {@link #postProcessMergedBeanDefinition} method may for example introspect the bean definition in order to prepare some cached metadata before post-processing actual instances of a bean. It is also allowed to modify the bean definition but <i>only</i> for definition properties which are actually intended for concurrent modification. Essentially, this only applies to operations defined on the {@link RootBeanDefinition} itself but not to the properties of its base classes.
-
-=== DestructionAwareBeanPostProcessor
-销毁bean的时候进行处理。AbstractAutowireCapableBeanFactory在创建了bean之后，会尝试去注册DisposableBean。注册时主要将拥有销毁方法的单例bean进行DisposableBeanAdapter适配，然后注册到单例注册器的disposableBeans中。
-
-> The typical usage will be to invoke custom destruction callbacks on specific bean types, matching corresponding initialization callbacks.
-
-=== InstantiationAwareBeanPostProcessor
-在createBean的分析中已经得知，BeanFactory会在doCreateBean之前，给iabpp一个机会，通过TargetSources返回一个代理对象。它就是调用postProcessBeforeInstantiation来完成这项工作的。
-
-> Typically used to suppress default instantiation for specific target beans, for example to create proxies with special TargetSources (pooling targets, lazily initializing targets, etc), or to implement additional injection strategies such as field injection.
-
-同时，它还能在属性注入前修改bean的状态，并控制是否注入属性（postProcessAfterInstantiation返回false就不进行属性注入）。以及通过postProcessProperties和postProcessPropertyValues两个方法对将要注入的PropertyValues进行处理。
-再以 AutowiredAnnotationBeanPostProcessor 为例，就是在postProcessProperties中，将查找到的AutowiringMetadata注入到bean中的。
-
-该接口还存在一个子接口：SmartInstantiationAwareBeanPostProcessor。
-
-> adding a callback for predicting the eventual type of a processed bean.
-
-除了预判返回的bean类型，它还在创建bean原始实例时尝试从候选构造函数列表中选定一个构造函数。
-以及为了解决循环依赖获取提前暴露的bean。如果一个对象提前获取过一次，就会将它放到earlyProxyReferences缓存中。aop过程中，就是通过在postProcessAfterInitialization中检查对象是不是在缓存中来避免重复要调用wrapIfNecessary（aop实现中的getEarlyBeanReference方法同样调用了wrapIfNecessary）。
-
 == BeanWrapper
 
 > The central interface of Spring's low-level JavaBeans infrastructure.
@@ -562,3 +509,333 @@ https://www.baeldung.com/spring-mvc-custom-property-editor
 2. 对于每个bean，它的依赖项以属性、构造函数参数或静态工厂方法参数的形式表示。在bean对象真正创建时，容器会提供这些依赖。
 3. 这些依赖，可能是某种类型的值或集合，也可能是对容器中另一个bean的引用。
 4. 如果是值，每种类型都有指定的转换器（Editor）将特定格式的配置信息转换成特定的类型。
+
+
+== BeanDefinitoin
+
+> A BeanDefinition describes a bean instance, which has property values, constructor argument values, and further information supplied by concrete implementations. 
+
+image::AbstractBeanDefinition.png[]
+
+Within the container itself, these bean definitions are represented as BeanDefinition objects, which contain (among other information) the following metadata:
+
+- A package-qualified class name: typically, the actual implementation class of the bean being defined.
+
+- Bean behavioral configuration elements, which state how the bean should behave in the container (scope, lifecycle callbacks, and so forth).
+
+- References to other beans that are needed for the bean to do its work. These references are also called collaborators or dependencies.
+
+- Other configuration settings to set in the newly created object — for example, the size limit of the pool or the number of connections to use in a bean that manages a connection pool.
+
+简单来讲，BeanDefinition包含如下信息：
+
+1. 类，一般就是全类名
+2. 行为，如scope(默认单例），bean生命周期回调等
+3. 依赖。Spring提倡构造注入，Setter注入主要应该仅用于可以在类中分配合理默认值的可选依赖项。但构造注入在循环依赖的时候会出现先有鸡还是先有蛋的问题，那时可以使用Setter注入避免这个问题。
+4. 其他属性
+
+=== Bean Definition Inheritance
+Bean Definition可以通过配置parent进行继承，并且可以重写父定义的属性值。
+
+```
+<bean id="inheritedTestBean" abstract="true"
+		class="org.springframework.beans.TestBean">
+	<property name="name" value="parent"/>
+	<property name="age" value="1"/>
+</bean>
+
+<bean id="inheritsWithDifferentClass"
+		class="org.springframework.beans.DerivedTestBean"
+		parent="inheritedTestBean" init-method="initialize">
+	<property name="name" value="override"/>
+	<!-- the age property value of 1 will be inherited from parent -->
+</bean>
+```
+一般情况下，Bean定义都需要指定class。但有一种情况例外，标记abstract为true的BeanDefinition，它只能用作纯模板 bean 定义，充当子定义的父定义。
+
+也正是这个特性，spring在创建bean之前，会通过getMergedBeanDefinition将配置合并，并缓存到mergedBeanDefinitions中(如果cacheBeanMetadata开启的话)。
+
+=== Factory Method
+
+在设计模式中，实例化一个类通常会用到静态工厂方法或者虚拟工厂。
+Spring除了支持构造函数实例化一个bean对象外，也支持工厂方法
+
+
+```
+<bean id="exampleBean" class="examples.ExampleBean" factory-method="createInstance">
+	<constructor-arg ref="anotherExampleBean"/>
+	<constructor-arg ref="yetAnotherBean"/>
+	<constructor-arg value="1"/>
+</bean>
+
+<bean id="anotherExampleBean" class="examples.AnotherBean"/>
+<bean id="yetAnotherBean" class="examples.YetAnotherBean"/>
+```
+
+静态工厂方法的参数由 `<constructor-arg/>` 元素提供。并且静态工厂方法的返回类型，是方法返回的对象的类型，不需要和包含该方法的类一致。
+
+> Arguments to the static factory method are supplied by <constructor-arg/> elements, exactly the same as if a constructor had actually been used.
+
+```
+public class ExampleBean {
+
+	// a private constructor
+	private ExampleBean(...) {
+		...
+	}
+
+	// a static factory method; the arguments to this method can be
+	// considered the dependencies of the bean that is returned,
+	// regardless of how those arguments are actually used.
+	public static ExampleBean createInstance (
+		AnotherBean anotherBean, YetAnotherBean yetAnotherBean, int i) {
+
+		ExampleBean eb = new ExampleBean (...);
+		// some other operations...
+		return eb;
+	}
+}
+```
+
+== Bean Scopes
+
+The Spring Framework 支持6种Scope，其中singleton和prototype是两个内建的scope，其他4个是在web环境使用的。Spring也支持注册自定义Scope。
+
+[[beans-factory-scopes-tbl]]
+.Bean scopes
+[cols="20%,80%"]
+|===
+| Scope| Description
+
+| singleton
+| (Default) Scopes a single bean definition to a single object instance for each Spring IoC
+  container.
+
+| prototype
+| Scopes a single bean definition to any number of object instances.
+
+| request
+| Scopes a single bean definition to the lifecycle of a single HTTP request. That is,
+  each HTTP request has its own instance of a bean created off the back of a single bean
+  definition. Only valid in the context of a web-aware Spring `ApplicationContext`.
+
+| session
+| Scopes a single bean definition to the lifecycle of an HTTP `Session`. Only valid in
+  the context of a web-aware Spring `ApplicationContext`.
+
+| application
+| Scopes a single bean definition to the lifecycle of a `ServletContext`. Only valid in
+  the context of a web-aware Spring `ApplicationContext`.
+
+| websocket
+| Scopes a single bean definition to the lifecycle of a `WebSocket`. Only valid in
+  the context of a web-aware Spring `ApplicationContext`.
+|===
+
+NOTE: A thread scope is available but is not registered by default. 
+
+我们在AbstractBeanFactory的doGetBean方法中可以看到如下代码：
+
+```
+// Create bean instance.
+if (mbd.isSingleton()) {
+    ...
+}
+
+else if (mbd.isPrototype()) {
+    // It's a prototype -> create a new instance.
+    ...
+}
+
+else {
+    String scopeName = mbd.getScope();
+    if (!StringUtils.hasLength(scopeName)) {
+        throw new IllegalStateException("No scope name defined for bean '" + beanName + "'");
+    }
+    Scope scope = this.scopes.get(scopeName);
+    if (scope == null) {
+        throw new IllegalStateException("No Scope registered for scope name '" + scopeName + "'");
+    }
+    ...
+}
+```
+
+image::Scope.png[]
+
+从代码可以看出，Spring是不允许重写 singleton and prototype 这两个内建的scopes的。
+
+=== Singleton Beans with Prototype-bean Dependencies
+当一个单例bean对象依赖一个原型bean对象时，一定要清楚原型实例在第一次初始化时就已经确定好了。如果希望单例对象每次都能获取一个新的原型实例，不能使用依赖注入（dependency-inject ），可以考虑使用 Method Injection.
+
+=== Scoped Beans as Dependencies
+
+如果您想将 HTTP 请求作用域的 bean 注入到另一个寿命较长作用域的 bean 中，则可以选择注入 AOP 代理来代替作用域 bean。
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+		https://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/aop
+		https://www.springframework.org/schema/aop/spring-aop.xsd">
+
+	<!-- an HTTP Session-scoped bean exposed as a proxy -->
+	<bean id="userPreferences" class="com.something.UserPreferences" scope="session">
+		<!-- instructs the container to proxy the surrounding bean -->
+		<aop:scoped-proxy/>
+	</bean>
+
+	<!-- a singleton-scoped bean injected with a proxy to the above bean -->
+	<bean id="userService" class="com.something.SimpleUserService">
+		<!-- a reference to the proxied userPreferences bean -->
+		<property name="userPreferences" ref="userPreferences"/>
+	</bean>
+</beans>
+```
+
+== Lifecycle
+
+可以在初始化和销毁bean时定义回调函数与Spring对bean生命周期的管理进行交互。
+
+从Spring的init过程可以看到,
+首先Spring会应用BeanPostProcessors, 调用postProcessBeforeInitialization
+(Spring的CommonAnnotationBeanPostProcessor负责处理PostConstruct 和 PreDestroy这两个注解)
+然后调用initMethods，执行InitializingBean接口的afterPropertiesSet方法，以及在beanDefinition中定义的init方法。
+
+```
+Object wrappedBean = bean;
+    if (mbd == null || !mbd.isSynthetic()) {
+    wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
+}
+
+    try {
+    invokeInitMethods(beanName, wrappedBean, mbd);
+}
+    catch (Throwable ex) {
+    throw new BeanCreationException(
+            (mbd != null ? mbd.getResourceDescription() : null),
+            beanName, "Invocation of init method failed", ex);
+}
+```
+
+所以，如果同时使用多种回调配置(并使用不同的方法,如果方法相同之会执行一次)，那么执行顺序如下：
+
+=== Initialization Callbacks
+
+1. Methods annotated with @PostConstruct
+
+2. afterPropertiesSet() as defined by the InitializingBean callback interface
+
+3. A custom configured init() method
+
+=== Destruction Callbacks
+销毁的过程顺序类似
+
+1. Methods annotated with @PreDestroy
+
+2. destroy() as defined by the DisposableBean callback interface
+
+3. A custom configured destroy() method
+
+=== CommonAnnotationBeanPostProcessor
+
+CommonAnnotationBeanPostProcessor 是一个BeanPostProcessor，支持开箱即用的常见 Java 注释，特别是 javax.annotation 包中的 JSR-250 注释。包含： PostConstruct 和 PreDestro。同时，它也包含对 @Resource注解的处理。
+
+image::CommonAnnotationBeanPostProcessor.png[]
+
+处理@Resource注解虽然和 @AutoWire 和 @Value 注解类似，但是后两者属于Spring的扩展，所以Spring使用AutowiredAnnotationBeanPostProcessor这个BeanPostProcessor进行处理。这体现了spring在设计上的高内聚。
+两者还有一个很大的区别： @Resource 是基于名称注入的 而 @AutoWire 则是基于类型注入的。
+
+== BeanDefinitionRegistry 
+
+DefaultListableBeanFactory是一个BeanDefinitionRegistry，BeanDefinitionRegistry 是 Spring 的 bean 工厂包中唯一封装 BeanDefinition 注册的接口。也就是说 BeanDefinition 只能通过这个接口注册到BeanFactory中。
+在ApplicationContext中，可以通过`getBeanFactory()`方法获取到DefaultListableBeanFactory，从而注册用户在容器外部创建的对象。但通常不需要这么做。如果真的需求，那么务必尽早注册。
+
+> Bean metadata and manually supplied singleton instances need to be registered as early as possible, in order for the container to properly reason about them during autowiring and other introspection steps. 
+
+
+=== BeanDefinitionReader 
+
+Spring提供了一个BeanDefinition读取器的简单接口:BeanDefinitionReader。
+比如：XmlBeanDefinitionReader 就是Spring读取XML bean definitions 的 BeanDefinitionReader 实现。
+
+但并不是所有的读取器都要实现这个接口，它是一个想要遵循标准命名约定的建议。
+比如：ConfigurationClassBeanDefinitionReader 就是从 ConfigurationClass instances 集合中读取bean definitions并注册到BeanDefinitionRegistry中，但并没有实现BeanDefinitionReader接口。
+
+> Note that a bean definition reader does not have to implement this interface. It only serves as a suggestion for bean definition readers that want to follow standard naming conventions.
+
+==== XmlBeanDefinitionReader
+
+image::XmlBeanDefinitionReader.png[]
+
+XML是Spring定义配置元数据的传统格式。比如在传统的使用web.xml描述文件进行配置的Spring web应用中，DispatcherServlet 会持有一个WebApplicationContext，它的默认实现就是XmlWebApplicationContext。这个wac就是通过XmlBeanDefinitionReader读取xml文件注册定义的BeanDefinitions。
+
+每次读取一个resource，reader都会create一个XmlReaderContext，其中包括要解析的 Resource， 以及 ProblemReporter、ReaderEventListener、SourceExtractor、XmlBeanDefinitionReader 和 NamespaceHandlerResolver。
+
+spring默认的namespace(以下简称ns)为：`http://www.springframework.org/schema/beans`
+其他ns都需要通过NamespaceHandlerResolver获取到对应的NamespaceHandler。
+NamespaceHandlerResolver 会从 META-INF/spring.handlers 读取配置，并根据配置的handler-class初始化handler对象，把 namespace 和 对应的 handler 对象 放到 handlerMappings 中。NamespaceHandlerResolver 由 BeanDefinitionReader 创建，并当作构造参数传递给 XmlReaderContext。
+解析的真正工作是交给 BeanDefinitionParserDelegate 实现的。构建delegate对象的时候，需要XmlReaderContext对象作为构造参数。
+
+每个 handler 会持有一组 BeanDefinitionParser，以 ContextNamespaceHandler 为例， 它在init时注册了8个parser：
+
+- PropertyPlaceholderBeanDefinitionParser
+- PropertyOverrideBeanDefinitionParser
+- AnnotationConfigBeanDefinitionParser
+- ComponentScanBeanDefinitionParser
+- LoadTimeWeaverBeanDefinitionParser
+- SpringConfiguredBeanDefinitionParser
+- MBeanExportBeanDefinitionParser
+- MBeanServerBeanDefinitionParser
+
+image::ContextNamespaceHandler.png[]
+
+=== ComponentScanBeanDefinitionParser
+
+除了使用xml配置Beans，我们还可以使用注解进行配置。
+我们需要在xml配置中，配置 `context:component-scan` ，spring会先通过 `context` 前缀确定 namespace，然后通过 NamespaceHandlerResolver 找到 namespace 对应的 NamespaceHandler。`context` 对应的 handler 是 `ContextNamespaceHandler`（继承自`NamespaceHandlerSupport`）, NamespaceHandlerSupport 的解析(parse)，又会委托给对应的 parser 去进行解析。`component-scan` 对应的parser 就是 `ComponentScanBeanDefinitionParser`。
+
+parser在进行解析(parse)时，会创建一个 ClassPathBeanDefinitionScanner
+
+image::ClassPathBeanDefinitionScanner.png[]
+
+通过 scaner 扫描出来的的 beanDefinition 以 `ScannedGenericBeanDefinition` 为实现类被注册到
+BeanDefinitionRegistry。这个完成BeanDefinition注册的实现，就没有实现BeanDefinitionReader。
+
+#### ConfigurationClassPostProcessor
+
+application在refresh的过程中，会调用 invokeBeanFactoryPostProcessors 来对 beanFactory进行后处理。后处理过程委托给 PostProcessorRegistrationDelegate 进行实现。
+
+Delegate 会优先找出 BeanDefinitionRegistryPostProcessor 进行后处理，其中 `ConfigurationClassPostProcessor` 是配置了component-scan 后 默认被注册到register中的一个BeanDefinitionRegistryPostProcessor，
+
+> This post processor is priority-ordered as it is important that any @Bean methods declared in @Configuration classes have their corresponding bean definitions registered before any other BeanFactoryPostProcessor executes.
+
+当配置了 <context:annotation-config/> or <context:component-scan/> 后， 默认就会注册 名称为 “org.springframework.context.annotation.internalConfigurationAnnotationProcessor”，class 为 ConfigurationClassPostProcessor 的 beanDefinition。
+
+
+> `<context:annotation-config> is used to activate annotations in beans already registered in the application context (no matter if they were defined with XML or by package scanning).
+<context:component-scan> can also do what <context:annotation-config> does but <context:component-scan> also scans packages to find and register beans within the application context.`
+
+`<context:annotation-config/>` 和 `<context:component-scan/>` 的区别在于component-scan会多一步扫描包来发现bean。
+
+具体可参见：
+https://stackoverflow.com/questions/7414794/difference-between-contextannotation-config-and-contextcomponent-scan
+
+#### ConfigurationClassParser
+
+beanDefinition加载完毕后，通过 scaner 扫描出来的的 beanDefinition 以 `ScannedGenericBeanDefinition` 为实现类(实现了 `AnnotatedBeanDefinition` 接口 )被注册到
+BeanDefinitionRegistry。
+
+image::ScannedGenericBeanDefinition.png[]
+
+ConfigurationClassPostProcessor 会找出 注册的 `AnnotatedBeanDefinition`，然后创建ConfigurationClassParser 对 @Configuration 的class 进行解析（@Component也行）。
+
+parser首先通过beanDefintion获取metadata和beanName构造一个ConfigurationClass对象，然后对这个ConfigurationClass对象进行解析。(因此这个 parser 是 ConfigurationClassParser， 用来解析 ConfigurationClass 的。)
+
+#### ConfigurationClassBeanDefinitionReader
+
+解析完 ConfigurationClass， ConfigurationClassPostProcessor 会构建 ConfigurationClassBeanDefinitionReader 读取 ConfigurationClass 中的配置，然后注册 ConfigurationClassBeanDefinition 到 registry 中。
+
+

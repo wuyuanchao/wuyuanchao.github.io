@@ -6,7 +6,7 @@ weight: 3
 = Application Context
 :toc:
 
-== ApplicationContext接口设计
+== ApplicationContext Interface
 ApplicationContext是为应用程序提供配置的中央接口。从类图可以看出，它是BeanFactory的一个子接口，并且添加了Message resource的支持（用于国际化），事件发布等功能组合成一个功能强大的容器。
 简单来说，BeanFactory提供配置框架和基本功能，ApplicationContext添加更多企业级应用功能。
 
@@ -22,7 +22,7 @@ image::ApplicationContext.png[]
 
 ApplicationContext作为一个应用容器。通常，人们会定义服务层对象、持久层对象（例如存储库或数据访问对象 (DAO)）、表示层对象（例如 Web 控制器)、基础设施对象(例如 JPA EntityManagerFactory、JMS 队列)等。而不会在容器中配置细粒度的领域对象，因为创建和加载领域对象通常是存储库和业务逻辑的责任。
 
-== ApplicationContext实现 
+== ApplicationContext Implement
 
 AbstractApplicationContext 使用模版方法设计模式，不强制要求用于配置的存储类型,简单地实现了通用的上下文功能。具体的虚拟方法实现由子类完成。
 
@@ -73,7 +73,7 @@ finishBeanFactoryInitialization(beanFactory);
 finishRefresh();
 ----
 
-=== prepareBeanFactory()
+=== prepareBeanFactory
 prepareBeanFactory方法，对BeanFactory进行了配置:
 
 1. 添加了两个 beanPostProcessors, ApplicationContextAwareProcessor（处理各种Aware接口） 和 ApplicationListenerDetector（需要尽早添加，用于发现并注册ApplicationListener）。
@@ -92,10 +92,10 @@ the System environment bean in the factory. See Also: System.getenv()
 - applicationStartup
 the ApplicationStartup bean in the factory.
 
-=== obtainFreshBeanFactory()
+=== obtainFreshBeanFactory
 顾名思义，获取 Bean工厂。obtainFreshBeanFactory中包含两个虚方法：refreshBeanFactory 和 getBeanFactory。由子类完成实现。 比如ClassPathXmlApplicationContext在obtainFreshBeanFactory时，就是在refreshBeanFactory中完成从XML读取BeanDefinition并注册到容器中的。
 
-=== invokeBeanFactoryPostProcessors()
+=== invokeBeanFactoryPostProcessors
 和BeanPostProcessor处理的是Bean不同，BeanFactoryPostProcessors是对beanFactory进行处理。容器在invokeBeanFactoryPostProcessors过程中，会从beanFactory查找这个BeanFactoryPostProcessor，并分三个优先级（priorityOrdered， ordered， nonOrdered）依次实例化并执行真正的处理。处理BeanFactoryPostProcessors的顺序非常重要。
 
 比如,我们在容器中配置PropertyPlaceholderConfigurer(它是一个处理占位符替换的BeanFactoryPostProcessor），在下例中，hello这个bean的message的值将使用config.properties配置文件中的配置值。如果这个"hello"对象，也是一个BeanFactoryPostProcessor，那么需要确保它在PropertyPlaceholderConfigurer处理完陈之后再进行处理。所以PropertyPlaceholderConfigurer实现了PriorityOrdered接口（PriorityOrdered objects are always applied before plain Ordered objects regardless of their order values）。
@@ -114,7 +114,7 @@ the ApplicationStartup bean in the factory.
 
 在这个过程中通过`getBean`实例化的BeanFactoryPostProcessors，容器中只有prepareBeanFactory 过程中主动注册的ApplicationContextAwareProcessor 和 ApplicationListenerDetector 两个BeanPostProcessor。所以其他未注册(要到下一步在进行registerBeanPostProcessors)的 BeanPostProcessors 并不能影响他们。
 
-=== registerBeanPostProcessors()
+=== registerBeanPostProcessors
 这一步注册所有的 BeanPostProcessors： 
 
 首先，从 beanFactory 中找出 beanPostProcessor 的 definition。BeanPostProcessors 和 上文中的 BeanFactoryPostProcessors 的优先级要求类似，也分为priorityOrdered， ordered， nonOrdered。
@@ -134,10 +134,10 @@ int beanProcessorTargetCount = beanFactory.getBeanPostProcessorCount() + 1 + pos
     beanFactory.addBeanPostProcessor(new BeanPostProcessorChecker(beanFactory, beanProcessorTargetCount));
 ```
 
-=== registerListeners()
+=== registerListeners
 从 beanFactory 的找出 ApplicationListener 注册到 EventMulticaster 中。注意，这里注册的是BeanNames，并没有实例化这些bean。
 
-=== finishBeanFactoryInitialization()
+=== finishBeanFactoryInitialization
 程序运行到这一步的时候，BeanFactory基本配置完成，所有的BeanPostProessor也准备就绪。
 
 - 冻结所有的beanDefinition，不允许再修改
@@ -147,7 +147,7 @@ int beanProcessorTargetCount = beanFactory.getBeanPostProcessorCount() + 1 + pos
 === finishRefresh()
 初始化 LifecycleProcessor， 默认 DefaultLifecycleProcessor 实现。并启动所有实现了SmartLifecycle 并且设置成 AutoStartup 的类。
 
-== 扩展点（Container Extension Points）
+== Container Extension Points
 
 === BeanPostProcessor
 
@@ -168,6 +168,11 @@ BeanPostProcessor包含两个回调方法,回调发生在属性注入之(populat
 > Apply this BeanPostProcessor to the given new bean instance after any bean initialization callbacks (like InitializingBean's afterPropertiesSet or a custom init-method). The bean will already be populated with property values. 
 +
 比如：ApplicationListenerDetector就是在这时，通过判断bean对象是不是ApplicationListener的实例，把listener注册到容器中的。
+
+BeanPostProcessor提供了修改bean实例对象的能力。在factory 的 initializeBean 方法中，执行invokeInitMethods前后分别调用applyBeanPostProcessorsBeforeInitialization，applyBeanPostProcessorsAfterInitialization。
+
+> Factory hook that allows for custom modification of new bean instances &mdash; for example, checking for marker interfaces or wrapping beans with proxies.
+> An {@code ApplicationContext} can autodetect {@code BeanPostProcessor} beans in its bean definitions and apply those post-processors to any beans subsequently created. A plain {@code BeanFactory} allows for programmatic registration of post-processors, applying them to all beans created through the bean factory.
 
 Spring进行BeanPostProcessor的回调代码如下：
 
@@ -208,6 +213,37 @@ protected Object initializeBean(String beanName, Object bean, @Nullable RootBean
 
 需要注意的是，一些 Spring AOP 基础结构类也是通过实现为BeanPostProcessor，以提供代理包装逻辑。而所有BeanPostProcessor的实例化都是在容器启动的时候就完成的，所以BeanPostProcessor 实例和它们直接引用的 bean，都可能不会被织入AOP逻辑（取决于实例化顺序）。
 
+applyBeanPostProcessorsAfterInitialization除了在initializeBean中对init之后的bean进行处理，还对postProcessBeforeInstantiation返回的代理对象以及FactoryBean返回的Object对象进行处理。即需要对每个初始化的对象，不管通过何种方式初始化的，都要进行处理。
+
+image::BeanPostProcessor.png[]
+
+BeanPostProcessor有三个子接口：
+
+==== MergedBeanDefinitionPostProcessor
+顾名思义，是对MergedBeanDefinition进行处理。回调的时机是在原始实例创建之后，属性注入之前。比如AutowiredAnnotationBeanPostProcessor就是在postProcessMergedBeanDefinition中去查找AutowiringMetadata的。
+
+> The {@link #postProcessMergedBeanDefinition} method may for example introspect the bean definition in order to prepare some cached metadata before post-processing actual instances of a bean. It is also allowed to modify the bean definition but <i>only</i> for definition properties which are actually intended for concurrent modification. Essentially, this only applies to operations defined on the {@link RootBeanDefinition} itself but not to the properties of its base classes.
+
+==== DestructionAwareBeanPostProcessor
+销毁bean的时候进行处理。AbstractAutowireCapableBeanFactory在创建了bean之后，会尝试去注册DisposableBean。注册时主要将拥有销毁方法的单例bean进行DisposableBeanAdapter适配，然后注册到单例注册器的disposableBeans中。
+
+> The typical usage will be to invoke custom destruction callbacks on specific bean types, matching corresponding initialization callbacks.
+
+==== InstantiationAwareBeanPostProcessor
+在createBean的分析中已经得知，BeanFactory会在doCreateBean之前，给iabpp一个机会，通过TargetSources返回一个代理对象。它就是调用postProcessBeforeInstantiation来完成这项工作的。
+
+> Typically used to suppress default instantiation for specific target beans, for example to create proxies with special TargetSources (pooling targets, lazily initializing targets, etc), or to implement additional injection strategies such as field injection.
+
+同时，它还能在属性注入前修改bean的状态，并控制是否注入属性（postProcessAfterInstantiation返回false就不进行属性注入）。以及通过postProcessProperties和postProcessPropertyValues两个方法对将要注入的PropertyValues进行处理。
+再以 AutowiredAnnotationBeanPostProcessor 为例，就是在postProcessProperties中，将查找到的AutowiringMetadata注入到bean中的。
+
+该接口还存在一个子接口：SmartInstantiationAwareBeanPostProcessor。
+
+> adding a callback for predicting the eventual type of a processed bean.
+
+除了预判返回的bean类型，它还在创建bean原始实例时尝试从候选构造函数列表中选定一个构造函数。
+以及为了解决循环依赖获取提前暴露的bean。如果一个对象提前获取过一次，就会将它放到earlyProxyReferences缓存中。aop过程中，就是通过在postProcessAfterInitialization中检查对象是不是在缓存中来避免重复要调用wrapIfNecessary（aop实现中的getEarlyBeanReference方法同样调用了wrapIfNecessary）。
+
 
 
 
@@ -228,7 +264,7 @@ ApplicationContext 允许 BeanFactoryPostProcessor 读取元配置数据(BeanDif
 
 如果需要获取FactoryBean本身，可以在id前添加 & : `getBean("&myBean")` 。
 
-=== 扩展点举例
+=== Example
 
 ==== Annotation-based Container Configuration
 
@@ -311,3 +347,69 @@ Bean with name 'a' has been injected into other beans [b] in its raw version as 
 
 通过以上配置，Spring会先初始化b对象，然后在初始化a的时候，a会去获取b的提前暴露对象，但b不会发生提前暴露对象和最终暴露的对象不一致的情况，于是a的属性注入成功，然后a继续init，并应用 AsyncAnnotationBeanPostProcessor 返回一个AOP代理对象，注入到b对象中。
 从原理可知，这种解决方案只适用于 a b 只存在一个有 @Async 注解的情况。不过两个循环依赖的对象，同时又都存在 @Async 或者 @Validated 注解的情况相对很少见。
+
+=== Summary
+
+首先，spring工程启动时,在obtainFreshBeanFactory方法中，准备好一个进行基本配置的BeanFactory。
+
+如果使用GenericApplicationContext，那么需要以编程方式将一些基础配置设置到BeanFactory中。SpringBoot的web工程，默认情况下使用AnnotationConfigServletWebServerApplicationContext，它继承自GenericApplicationContext，在构造时会注册 AnnotationConfigProcessors 和 其他一些BeanFactoryBeanPostProcessors。
+
+如果使用ClassPathXmlApplicationContext,则需要在XML文件中进行配置，Spring会在obtainFreshBeanFactory的时候，从XML加载配置的BeanDefinition。
+
+image::AnnotationConfigServletWebServerApplicationContext.png[]
+
+上述准备工作完成后，就说明扩展点都配置好了。接下来就是Spring怎么支持这些扩展点的。
+
+
+1. BeanFactoryPostProcessor.postProcessBeanFactory 
++
+在ApplicationContext启动时(refresh方法中的invokeBeanFactoryPostProcessors)。BeanFactoryPostProcessor 只有一个方法 postProcessBeanFactory，所以只有此处会应用。
++
+此时可以修改BeanDefition的元数据,如占位符替换等。
++
+也可以追加BeanDefinition，比如ConfigurationClassPostProcessor,解析配置注解类，比如 `@Bean` 注解。如果配置了 `@ComponentScan` 注解，还会执行扫描。然后构建BeanDefition注册到容器中。
++
+注意，如果是通过XML配置 `<context:component-scan base-package="org.example" />` 进行扫描，它不是通过BeanFactoryPostProcessor处理的。而是在DefinitionReader中处理的。可见，BeanDefinition的追加可以很灵活，但是越靠前越好，因为Spring在refresh的时候 通过getBean 初始化BeanFactoryPostProcessor 和 BeanPostProcessor 。如果在这之后再注册 PostProcessor 的 BeanDefinition，那此扩展点可能不会生效。 
+
+2. InstantiationAwareBeanPostProcessor.postProcessBeforeInstantiation
++
+在CreateBean函数中，doCreateBean之前调用，允许返回一个代理对象代替目标对象。
++
+这个扩展点一般在框架内部使用。
++
+> NOTE: This interface is a special purpose interface, mainly for internal use within the framework. It is recommended to implement the plain BeanPostProcessor interface as far as possible.
+
+3. MergedBeanDefinitionPostProcessor.postProcessMergedBeanDefinition
++
+在createBeanInstance得到instanceWrapper之后调用, 修改merged bean definition。 
++
+比如：CommonAnnotationBeanPostProcessor 和 AutowiredAnnotationBeanPostProcessor 都是在此时去查找InjectionMetadata，放入 injectionMetadataCache 缓存，并将这些信息注册到BeanDefinition的externallyManagedConfigMembers中，以备后用。（注意：这里修改的是MergedBeanDefinition, 而不是占位符替换时修改的BeanDefnition元数据）。
+
+4. InstantiationAwareBeanPostProcessor.postProcessAfterInstantiation 
++
+在populateBean方法中，正式开始属性注入之前调用。
++
+> Give any InstantiationAwareBeanPostProcessors the opportunity to modify the state of the bean before properties are set. This can be used, for example, to support styles of field injection.
+
+5. InstantiationAwareBeanPostProcessor.postProcessProperties
++
+提供额外的属性注入能力。
++
+> Post-process the given property values before the factory applies them to the given bean, without any need for property descriptors.
++ 
+比如：CommonAnnotationBeanPostProcessor 和 AutowiredAnnotationBeanPostProcessor, 此时就时使用在步骤3收集的InjectionMetadata，调用InjectionMetadata.inject 完成属性注入。
+
+6. BeanPostProcessor.postProcessBeforeInitialization
++
+在属性注入后，初始化开始之前。比如：ApplicationContextAwareProcessor 就是在此时，调用ApplicationContext相关的Aware接口。
+CommonAnnotationBeanPostProcessor 继承自InitDestroyAnnotationBeanPostProcessor 也是在此时，调用注解了 `@PostConstruct` 的方法进行Bean的初始化。然后再进行invokeInitMethods方法的逻辑。
+
+7. BeanPostProcessor.postProcessAfterInitialization
++
+在初始化完成之后。比如：AbstractAutoProxyCreator就是在此时进行自动代理的。
+
+8. SmartInstantiationAwareBeanPostProcessor.getEarlyBeanReference
++
+只有当出现循环依赖时，`getSingleton` 方法会触发 AbstractAutowireCapableBeanFactory.getEarlyBeanReference ,从而应用 SmartInstantiationAwareBeanPostProcessors。
+
+可以发现，大部分的扩展点都作用在创建Bean对象的时候。
