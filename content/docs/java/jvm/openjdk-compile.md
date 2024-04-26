@@ -13,6 +13,8 @@ weight: 1
 
 _这是一篇很久以前写的笔记，目前OpenJDK源码已经有github仓库了。获取源码后进入目录，然后一路 `sh ./configure` 根据提示安装依赖，最后 `make images`。愿一切顺利。_
 
+_我在MAC下编译，唯一遇到的一个小障碍就是 `configure: error: XCode tool 'metal' neither found in path nor with xcrun` ，只要执行下 `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer` 就可以解决了。这里 https://github.com/gfx-rs/gfx/issues/2309 有详细说明_
+
 ---------------------
 
 学习jvm，有必要学会自己编译一个jdk。《深入理解java虚拟机》里的“实战：自己编译JDK”用的是OpenJDK7, 可能是因为环境的问题，按照书本上的指导我没有编译成功。于是果断上官网 [http://openjdk.java.net/](http://openjdk.java.net/) ，在[Developers' Guide](http://openjdk.java.net/guide/)里有详细的获取源码的教程。

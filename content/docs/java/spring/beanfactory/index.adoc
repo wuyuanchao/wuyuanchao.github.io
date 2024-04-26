@@ -246,11 +246,28 @@ Also supports registration of {@link org.springframework.beans.factory.Disposabl
 
 该实现类主要用来当作BeanFactory实现的基类，提供对单例对象的管理的支持。因为这是个单例对象注册器，所以核心功能是单例对象的注册和获取，对象的创建工作不属于该类的职责范围。为了支持循环依赖，注册器需要知道正在创建中的单例对象，将未装配完成的对象暴露出来。为了能正确销毁对象，注册器需要知道哪些对象指定了destroy方法，以及对象间的包含和依赖关系。因此它包含了以下几个重要的域：
 
-1. 三个比较重要的缓存，负责存储已注册或者正在创建中的单例对象.使用三个缓存主要是为了对循环依赖提供支持，如果没有循环依赖，singletonFactories和earlySingletonObjects是不起作用的。其中singletonFactories是hashMap，而非concurrentHashMap，因为对它的读写全部由synchronized (this.singletonObjects)包裹，因此不需要使用concurrentHashMap。
-
+1. 三个比较重要的缓存，负责存储已注册或者正在创建中的单例对象.
++
 - singletonObjects （ConcurrentHashMap）
 - singletonFactories （HashMap）
 - earlySingletonObjects （ConcurrentHashMap）
++
+使用三个缓存主要是为了对循环依赖提供支持，如果没有循环依赖，singletonFactories和earlySingletonObjects是不起作用的。其中singletonFactories是hashMap，而非concurrentHashMap，因为对它的读写全部由synchronized (this.singletonObjects)包裹，因此不需要使用concurrentHashMap。
+spring容器有个标志位，是否允许循环依赖:allowCircularReferences。如果此标志开启，当创建一个单例bean的时候,spring会将原始的bean放到 singletonFactories 中。用于可能的循环依赖。
++
+[quote, source code of springframework]
+"Eagerly caching bean '${beanName}' to allow for resolving potential circular references"
++
+singletonFactories是一个键为beanName，值为ObjectFactory的HashMap。可以通过以下方法添加：
++
+----
+org.springframework.beans.factory.support.DefaultSingletonBeanRegistry#addSingletonFactory
+----
++
+这个方法是一个protected方法,目前只有在 `org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#doCreateBean` 方法中进行了调用。
+`AbstractAutowireCapableBeanFactory` 会将 `getEarlyBeanReference` 函数指针传递给 `ObjectFactory` ，只有发生循环依赖时，才会去调用 `getObject` ，从而调用 `getEarlyBeanReference` 方法。
+如果这时在beanFactory中有 `SmartInstantiationAwareBeanPostProcessor` ,会调用这个bpp的 getEarlyBeanReference 方法，否则返回原始的bean。
+通过上述处理，就实现了AOP自动代理的对象提前暴露。
 
 2. 一个已注册单例对象名称的集合： 
 - registeredSingletons（LinkedHashSet）
