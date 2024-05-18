@@ -1,0 +1,15 @@
+---
+title: "Divio"
+date: 2024-05-18T14:28:47+08:00
+# bookComments: false
+# bookSearchExclude: false
+---
+
+这是一个关于如何写好软件文档的秘密！
+
+https://docs.divio.com/documentation-system/[Divio Documentation System]
+
+> There is a secret that needs to be understood in order to write good software documentation: there isn’t one thing called documentation, there are four.
+
+image::overview.png[]
+

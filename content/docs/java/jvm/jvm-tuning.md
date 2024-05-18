@@ -59,6 +59,11 @@ JVM调优关注的性能指标如下：
 
 通过GC日志测量应用程序的内存占用情况
 
+开启GC日志的参数如下：
+```
+-XX:+PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Xloggc:<filename>
+```
+
 2. 调优延迟
 
 延迟需要关注的的指标有：
@@ -69,12 +74,22 @@ JVM调优关注的性能指标如下：
 
 通过调整新生代，老年代的大小来优化这些指标。
 
+使用 `-Xms` 和 `-Xmx` 指定堆的初始值和最大值。`-Xmn` 指定整个新生代的大小（包括一个Eden区和两个Survivor区）。
+
 也可以考虑更换垃圾收集器。比如：
 
 - PS/PS Old的组合，适合高吞吐量需求的后台任务系统。
 - ParNew/CMS+Serial Old适合运行在高性能硬件下的低延迟要求的服务。
 - Serial/Serial Old则适合单CPU（单核）环境。
 - G1则是最先进的收集器，目标也是低延迟，可以考虑替换CMS。
+
+各垃圾收集器的配置参数如下：
+
+- Serial Garbage Collector `-XX:+UseSerialGC`
+- Parallel Garbage Collector `-XX:+UseParallelGC`
+- CMS Garbage Collector `-XX:+UseConcMarkSweepGC`
+- G1 Garbage Collector `-XX:+UseG1GC`
+
 
 3. 吞吐量调优
 
