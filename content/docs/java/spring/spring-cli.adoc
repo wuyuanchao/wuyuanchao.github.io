@@ -1,6 +1,6 @@
 ---
 title: "Spring Cli"
-date: 2023-05-08T11:35:37+08:00
+date: 2024-05-26T11:35:37+08:00
 weight: 1
 ---
 
@@ -11,8 +11,19 @@ The Spring Boot CLI is a command line tool that you can use to bootstrap a new p
 ## 初始化一个项目：
 
 ```
+spring init --build=maven --java-version=17 --dependencies=web --boot-version=3.1.0 mywebserver 
+```
+
+随着spring的升级，以下命令执行将会得到错误
+
+```
 spring init --build=maven --java-version=1.8 --dependencies=web --boot-version=2.7.8 mydemo
 ```
+
+----
+Initializr service call failed using 'https://start.spring.io' - service returned Bad Request: 'Invalid Spring Boot version '2.7.8', Spring Boot compatibility range is >=3.1.0'
+----
+
 
 ## 加密密码
 
