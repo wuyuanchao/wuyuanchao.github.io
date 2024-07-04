@@ -11,7 +11,7 @@ The Spring Boot CLI is a command line tool that you can use to bootstrap a new p
 ## 初始化一个项目：
 
 ```
-spring init --build=maven --java-version=17 --dependencies=web --boot-version=3.1.0 mywebserver 
+spring init --build=maven --java-version=17 --group-id=com.wuyc --dependencies=web --boot-version=3.2.0 mywebserver 
 ```
 
 随着spring的升级，以下命令执行将会得到错误
