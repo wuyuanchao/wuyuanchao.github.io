@@ -97,6 +97,10 @@ Loads bean definitions from underlying sources, including XML and JavaConfig.
 Acts as a simple facade over AnnotatedBeanDefinitionReader, XmlBeanDefinitionReader and ClassPathBeanDefinitionScanner.
 ----
 
+Loader会用primarySource构造一个AnnotatedGenericBeanDefinition注册到BeanDefinitionRegistry。primarySource一般就是我们使用 `@SpringBootApplication` 注解的主类。
+
+image::BeanDefinitions.png[]
+
 完成准备工作后，执行 refreshContext ，ApplicationContext 调用自己的refresh方法进行工作。
 
 ### 2.2 启动WebServer
