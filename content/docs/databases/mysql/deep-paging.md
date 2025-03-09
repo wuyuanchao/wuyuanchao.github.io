@@ -97,7 +97,7 @@ select name, age, grade from student where id > 990000 order by id limit 10;
 但是不适合直接跳转到第几页的场景。或者按其他要求排序。
 
 
-#### 2. 子查询(Subquery)
+### 2. 子查询(Subquery)
 
 增加索引前后性能对比：
 ```
