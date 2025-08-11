@@ -1,0 +1,12 @@
+---
+title: "Anylysis"
+date: 2025-07-02T10:35:37+08:00
+weight: 1
+---
+
+## Analyzer
+
+An Analyzer builds TokenStreams, which analyze text. It thus represents a policy for extracting index terms from text.
+
+image::TokenStreams.png[]
+
