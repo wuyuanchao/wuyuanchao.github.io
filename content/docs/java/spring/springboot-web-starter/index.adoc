@@ -8,7 +8,7 @@ bookToc: true
 # bookSearchExclude: false
 ---
 
-# Springboot Web启动
+== Springboot Web启动
 
 Springboot Web项目，通过main方法中调用SpringApplication的静态run方法，传入primarySource（@SpringBootApplication注解的主类）进行启动。
 
