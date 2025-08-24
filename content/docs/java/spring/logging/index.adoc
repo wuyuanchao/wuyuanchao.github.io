@@ -1,0 +1,100 @@
+---
+title: "Logging"
+weight: 1
+# bookFlatSection: false
+bookToc: true
+# bookHidden: false
+# bookCollapseSection: false
+# bookComments: false
+# bookSearchExclude: false
+---
+
+== SpringLoggingSystem
+:imagesdir: images
+:toc: 
+
+
+image::LoggingSystem.png[]
+
+== 加载
+Spring启动时，会加载 Spring Boot 在 spring.factories 中配置的 ApplicationListeners：
+
+～/.m2/repository/org/springframework/boot/spring-boot/3.5.5/spring-boot-3.5.5.jar!/META-INF/spring.factories
+
+[, Shell]
+----
+# Application Listeners
+org.springframework.context.ApplicationListener=\
+org.springframework.boot.ClearCachesApplicationListener,\
+org.springframework.boot.builder.ParentContextCloserApplicationListener,\
+org.springframework.boot.context.FileEncodingApplicationListener,\
+org.springframework.boot.context.config.AnsiOutputApplicationListener,\
+org.springframework.boot.context.logging.LoggingApplicationListener,\
+org.springframework.boot.env.EnvironmentPostProcessorApplicationListener
+----
+
+其中 LoggingApplicationListener 就是其中一员。
+
+LoggingApplicationListener 在接收到 ApplicationStartingEvent（启动） 事件时，会调用 LoggingSystem的get方法（静态）加载具体的 LoggingSystem，而真正的加载工作最终委托给 DelegatingLoggingSystemFactory。
+
+[,Java]
+----
+private static final LoggingSystemFactory SYSTEM_FACTORY = LoggingSystemFactory.fromSpringFactories();
+
+public static LoggingSystem get(ClassLoader classLoader) {
+    String loggingSystemClassName = System.getProperty(SYSTEM_PROPERTY);
+    if (StringUtils.hasLength(loggingSystemClassName)) {
+        if (NONE.equals(loggingSystemClassName)) {
+            return new NoOpLoggingSystem();
+        }
+        return get(classLoader, loggingSystemClassName);
+    }
+    LoggingSystem loggingSystem = SYSTEM_FACTORY.getLoggingSystem(classLoader);
+    Assert.state(loggingSystem != null, "No suitable logging system located");
+    return loggingSystem;
+}
+----
+
+springboot的LoggingSystemFactory配置如下：
+
+[,Shell]
+----
+# Logging Systems
+org.springframework.boot.logging.LoggingSystemFactory=\
+org.springframework.boot.logging.java.JavaLoggingSystem$Factory,\
+org.springframework.boot.logging.log4j2.Log4J2LoggingSystem$Factory,\
+org.springframework.boot.logging.logback.LogbackLoggingSystem$Factory
+----
+
+这三个Factory都有@Order注解，分别是：
+
+- LogbackLoggingSystem 
+`@Order(Ordered.HIGHEST_PRECEDENCE + 1024)`
+
+- Log4J2LoggingSystem 
+`@Order(0)`
+
+- JavaLoggingSystem
+`@Order(Ordered.LOWEST_PRECEDENCE - 1024)`
+
+以优先级最高的 LogbackLoggingSystem 为例，判断 `qos.logback.classic.LoggerContext` 类是否存在，存在则创建 LogbackLoggingSystem 实例。
+[,Java]
+----
+@Order(Ordered.HIGHEST_PRECEDENCE + 1024)
+public static class Factory implements LoggingSystemFactory {
+
+    private static final boolean PRESENT = ClassUtils.isPresent("ch.qos.logback.classic.LoggerContext",
+            Factory.class.getClassLoader());
+
+    @Override
+    public LoggingSystem getLoggingSystem(ClassLoader classLoader) {
+        if (PRESENT) {
+            return new LogbackLoggingSystem(classLoader);
+        }
+        return null;
+    }
+
+}
+----
+
+`qos.logback.classic.LoggerContext` 类则是由 `spring-boot-starter-logging` 依赖传递而来。
