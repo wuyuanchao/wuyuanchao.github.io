@@ -126,7 +126,7 @@ protected String[] getStandardConfigLocations() {
 
 并且会尝试添加 `-spring` 后缀后的配置。所以我们的 logback-spring.xml才能被加载。
 
-[,Java]
+[source,java]
 ----
 protected String[] getSpringConfigLocations() {
     String[] locations = getStandardConfigLocations();
