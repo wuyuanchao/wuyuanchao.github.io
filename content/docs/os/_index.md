@@ -1,6 +1,6 @@
 ---
+weight: 4
 title: "Operator System"
-bookHref: "/posts"
-weight: 999
+bookFlatSection: true
 ---
 
