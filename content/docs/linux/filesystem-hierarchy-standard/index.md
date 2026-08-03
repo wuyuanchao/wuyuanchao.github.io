@@ -1,3 +1,9 @@
++++
+title = 'Filesystem Hierarchy Standard'
+date = 2026-08-01T20:49:54+08:00
++++
+
+
 ## Filesystem Hierarchy Standard
 是 Linux/Unix 系统里非常重要的一个标准，它规定了 系统目录的组织方式和用途。
 
