@@ -38,7 +38,7 @@ git init
 2. Config theme 
 ```bash
 # Clone the nostyleplease theme into the themes directory, adding it to your project as a Git submodule.
-git submodule add https://github.com/g-hanwen/hugo-theme-nostyleplease.git themes/nostyleplease
+git submodule add https://github.com/hanwenguo/hugo-theme-nostyleplease.git themes/nostyleplease
 
 # Append a line to the site configuration file, indicating the current theme.
 echo "theme = 'nostyleplease'" >> hugo.toml
