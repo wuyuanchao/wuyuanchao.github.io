@@ -1,7 +1,13 @@
-## Architecture
-![img.png](img.png)
++++
+title = 'Authentication'
+date = 2026-08-21T10:49:54+08:00
++++
 
 ## Authentication
+
+### Architecture
+![img.png](img.png)
+
 ###  SecurityContextHolder
 
 > The SecurityContextHolder is where Spring Security stores the details of who is authenticated.
@@ -112,54 +118,71 @@ public void commence(HttpServletRequest request, HttpServletResponse response,
 ![AbstractAuthenticationProcessingFilter.png](AbstractAuthenticationProcessingFilter.png)
 
 1. 用户提交凭证，AbstractAuthenticationProcessingFilter 从 HttpServletRequest 创建一个 Authentication 实例，具体实现依赖 AbstractAuthenticationProcessingFilter 的子类。
-     ```
-     /**
-	 * Performs actual authentication.
-	 * <p>
-	 * The implementation should do one of the following:
-	 * <ol>
-	 * <li>Return a populated authentication token for the authenticated user, indicating
-	 * successful authentication</li>
-	 * <li>Return null, indicating that the authentication process is still in progress.
-	 * Before returning, the implementation should perform any additional work required to
-	 * complete the process.</li>
-	 * <li>Throw an <tt>AuthenticationException</tt> if the authentication process
-	 * fails</li>
-	 * </ol>
-	 * @param request from which to extract parameters and perform the authentication
-	 * @param response the response, which may be needed if the implementation has to do a
-	 * redirect as part of a multi-stage authentication process (such as OIDC).
-	 * @return the authenticated user token, or null if authentication is incomplete.
-	 * @throws AuthenticationException if authentication fails.
-	 */
-	 public abstract Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
-			throws AuthenticationException, IOException, ServletException;
-     ```
+ ```java
+ /**
+ * Performs actual authentication.
+ * <p>
+ * The implementation should do one of the following:
+ * <ol>
+ * <li>Return a populated authentication token for the authenticated user, indicating
+ * successful authentication</li>
+ * <li>Return null, indicating that the authentication process is still in progress.
+ * Before returning, the implementation should perform any additional work required to
+ * complete the process.</li>
+ * <li>Throw an <tt>AuthenticationException</tt> if the authentication process
+ * fails</li>
+ * </ol>
+ * @param request from which to extract parameters and perform the authentication
+ * @param response the response, which may be needed if the implementation has to do a
+ * redirect as part of a multi-stage authentication process (such as OIDC).
+ * @return the authenticated user token, or null if authentication is incomplete.
+ * @throws AuthenticationException if authentication fails.
+ */
+ public abstract Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
+        throws AuthenticationException, IOException, ServletException;
+ ```
    比如：`UsernamePasswordAuthenticationFilter` 会创建一个 `UsernamePasswordAuthenticationToken`。
-    ```
-   	@Override
-	public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
-			throws AuthenticationException {
-		if (this.postOnly && !request.getMethod().equals("POST")) {
-			throw new AuthenticationServiceException("Authentication method not supported: " + request.getMethod());
-		}
-		String username = obtainUsername(request);
-		username = (username != null) ? username.trim() : "";
-		String password = obtainPassword(request);
-		password = (password != null) ? password : "";
-		UsernamePasswordAuthenticationToken authRequest = UsernamePasswordAuthenticationToken.unauthenticated(username,
-				password);
-		// Allow subclasses to set the "details" property
-		setDetails(request, authRequest);
-		return this.getAuthenticationManager().authenticate(authRequest);
-	}
-    ```
+```java
+@Override
+public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
+        throws AuthenticationException {
+    if (this.postOnly && !request.getMethod().equals("POST")) {
+        throw new AuthenticationServiceException("Authentication method not supported: " + request.getMethod());
+    }
+    String username = obtainUsername(request);
+    username = (username != null) ? username.trim() : "";
+    String password = obtainPassword(request);
+    password = (password != null) ? password : "";
+    UsernamePasswordAuthenticationToken authRequest = UsernamePasswordAuthenticationToken.unauthenticated(username,
+            password);
+    // Allow subclasses to set the "details" property
+    setDetails(request, authRequest);
+    return this.getAuthenticationManager().authenticate(authRequest);
+}
+```
 2. 然后，身份验证信息会传递给身份验证管理器进行验证。
 3. 如果认证失败
    - 清除 SecurityContextHolder
    - 调用 RememberMeServices.loginFail
    - 调用 AuthenticationFailureHandler
 4. 如果认证成功
+```java
+protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
+        Authentication authResult) throws IOException, ServletException {
+    SecurityContext context = this.securityContextHolderStrategy.createEmptyContext();
+    context.setAuthentication(authResult);
+    this.securityContextHolderStrategy.setContext(context);
+    this.securityContextRepository.saveContext(context, request, response);
+    if (this.logger.isDebugEnabled()) {
+        this.logger.debug(LogMessage.format("Set SecurityContextHolder to %s", authResult));
+    }
+    this.rememberMeServices.loginSuccess(request, response, authResult);
+    if (this.eventPublisher != null) {
+        this.eventPublisher.publishEvent(new InteractiveAuthenticationSuccessEvent(authResult, this.getClass()));
+    }
+    this.successHandler.onAuthenticationSuccess(request, response, authResult);
+}
+```
    - SessionAuthenticationStrategy 收到新的登录通知
    - 从 SecurityContextHolder 加载已认证的 Authentication，并将 authorities 添加到返回的 Authentication.
    - 调用 RememberMeServices.loginSuccess
@@ -176,7 +199,7 @@ AbstractUserDetailsAuthenticationProvider 提供和 UserDetails 工作的能力�
 
 > A base AuthenticationProvider that allows subclasses to override and work with UserDetails objects.
 
-![AbstractUserDetailsAuthenticationProvider.png](AbstractUserDetailsAuthenticationProvider.png)
+![UsernamePasswordAuthenticationFilter.png](UsernamePasswordAuthenticationFilter.png)
 
 DaoAuthenticationProvider 通过 UserDetailsService 获取 UserDetails
 

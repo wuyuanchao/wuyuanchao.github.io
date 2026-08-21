@@ -1,10 +1,7 @@
----
-title: "Architecture"
-_build:
-  render: never
-  list: never
-  publishResources: false
----
++++
+title = 'Architecture'
+date = 2026-08-21T10:49:54+08:00
++++
 
 Spring Security’s Servlet support is based on Servlet Filters.
 
